@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "enum": ["send_slack_message", "send_email", "request_missing_info"]
+    },
+    "arguments": { "type": "object" }
+  },
+  "required": ["name", "arguments"],
+  "additionalProperties": false
+}
