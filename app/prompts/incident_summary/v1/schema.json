@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "incident_title": { "type": "string" },
+    "actions_taken": { "type": "array", "items": { "type": "string" } },
+    "tool_outcomes": { "type": "array", "items": { "type": "string" } },
+    "next_steps": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["incident_title", "actions_taken", "tool_outcomes", "next_steps"],
+  "additionalProperties": false
+}

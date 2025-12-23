@@ -5,18 +5,20 @@ Why HTTP directly?
 - Avoids SDK drift in tutorial code.
 - Makes it easier to mock with httpx transports.
 
-We use Structured Outputs (JSON Schema) to strongly bias the model toward valid JSON shapes. :contentReference[oaicite:1]{index=1}
+Structured Outputs docs: use `text: { format: { type: "json_schema", strict: true, schema: ... } }`. :contentReference[oaicite:3]{index=3}
+Responses API reference: request fields include `input`, `text`, and optional `safety_identifier`. :contentReference[oaicite:4]{index=4}
 """
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
-from app.llm.base import LLMClient, LLMRequest, LLMResponse
+from app.llm.base import LLMClient, LLMRequest, LLMResponse, LLMUsage
 
 
 @dataclass(frozen=True)
@@ -25,10 +27,8 @@ class OpenAIResponsesConfig:
 
     api_key: str
     base_url: str = 'https://api.openai.com/v1'
-    model: str = 'gpt-4.1-mini'
-    # If you have a stricter JSON Schema, pass it here to enforce shape via Structured Outputs.
-    # For this tutorial, we enforce the ToolCall envelope:
-    # { "name": "...", "arguments": { ... } }
+    model: str = 'gpt-4o-2024-08-06'
+    temperature: float | None = None
     toolcall_envelope_schema: dict[str, Any] | None = None
 
 
@@ -40,11 +40,16 @@ class OpenAIResponsesLLMClient(LLMClient):
         self._client = client
 
     @staticmethod
-    def from_env(*, model: str = 'gpt-4.1-mini', schema: dict[str, Any] | None = None) -> 'OpenAIResponsesLLMClient':
+    def from_env(
+            *,
+            model: str = 'gpt-4o-2024-08-06',
+            schema: dict[str, Any] | None = None,
+            temperature: float | None = None,
+    ) -> 'OpenAIResponsesLLMClient':
         api_key = os.environ.get('OPENAI_API_KEY', '').strip()
         if not api_key:
             raise RuntimeError('OPENAI_API_KEY is required to use OpenAIResponsesLLMClient.')
-        cfg = OpenAIResponsesConfig(api_key=api_key, model=model, toolcall_envelope_schema=schema)
+        cfg = OpenAIResponsesConfig(api_key=api_key, model=model, temperature=temperature)
         return OpenAIResponsesLLMClient(cfg)
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
@@ -54,38 +59,52 @@ class OpenAIResponsesLLMClient(LLMClient):
             'Content-Type': 'application/json',
         }
 
-        # Responses API accepts "input". We send a single user-style content block containing the rendered prompt.
-        # Structured Outputs: provide a JSON schema response format to enforce output shape. :contentReference[oaicite:2]{index=2}
         body: dict[str, Any] = {
             'model': self._cfg.model,
             'input': request.prompt,
         }
 
-        if self._cfg.toolcall_envelope_schema is not None:
-            body['response_format'] = {
-                'type': 'json_schema',
-                'json_schema': {
-                    'name': 'tool_call_envelope',
-                    'schema': self._cfg.toolcall_envelope_schema,
-                    'strict': True,
-                },
+        schema_name = (
+            request.metadata.get("module")
+            if request.metadata and "module" in request.metadata
+            else "structured_output"
+        )
+
+        if request.json_schema is not None:
+            body["text"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": schema_name,
+                    "schema": request.json_schema,
+                    "strict": True,
+                }
             }
 
-        # Note: We intentionally keep tool/function calling out of this chapter’s adapter.
-        # Our tutorial's "tool call" is a JSON object returned by the model.
-        # Tool execution happens in the orchestrator/harness.
+        if request.safety_identifier:
+            body['safety_identifier'] = request.safety_identifier
+
 
         if self._client is not None:
-            resp = await self._client.post(url, json=body, headers=headers, timeout=30.0)
+            resp = await self._client.post(url, json=body, headers=headers, timeout=60.0)
             resp.raise_for_status()
             data = resp.json()
-            return LLMResponse(output_text=_extract_output_text(data), raw=data)
+            return LLMResponse(
+                output_text=_extract_output_text(data),
+                raw=data,
+                usage=_extract_usage(data),
+            )
 
         async with httpx.AsyncClient() as client:
-            resp = await client.post(url, json=body, headers=headers, timeout=30.0)
+            print('FINAL BODY SENT TO OPENAI:\n', json.dumps(body))
+            resp = await client.post(url, json=body, headers=headers, timeout=60.0)
+            print('OPENAI RESPONSE:\n', json.dumps(resp.json()))
             resp.raise_for_status()
             data = resp.json()
-            return LLMResponse(output_text=_extract_output_text(data), raw=data)
+            return LLMResponse(
+                output_text=_extract_output_text(data),
+                raw=data,
+                usage=_extract_usage(data),
+            )
 
 
 def _extract_output_text(payload: dict[str, Any]) -> str:
@@ -101,7 +120,6 @@ def _extract_output_text(payload: dict[str, Any]) -> str:
         for item in output:
             if not isinstance(item, dict):
                 continue
-            # Common pattern: item has "content": [{"type":"output_text","text":"..."}]
             content = item.get('content')
             if isinstance(content, list):
                 for c in content:
@@ -109,14 +127,26 @@ def _extract_output_text(payload: dict[str, Any]) -> str:
                         text = c.get('text')
                         if isinstance(text, str) and text.strip():
                             return text
-            # Fallback: some variants include a top-level "text"
-            text = item.get('text')
-            if isinstance(text, str) and text.strip():
-                return text
 
-    # Fallback: some payloads include "output_text" directly
+    # Some SDKs expose output_text; REST payloads may not. Keep a fallback.
     direct = payload.get('output_text')
     if isinstance(direct, str) and direct.strip():
         return direct
 
     raise ValueError('Unable to extract output text from Responses API payload.')
+
+def _extract_usage(payload: dict[str, Any]) -> LLMUsage:
+    usage = payload.get('usage')
+    if not isinstance(usage, dict):
+        return LLMUsage()
+
+    # Responses API includes a usage object (token details). :contentReference[oaicite:5]{index=5}
+    input_tokens = usage.get('input_tokens')
+    output_tokens = usage.get('output_tokens')
+    total_tokens = usage.get('total_tokens')
+
+    return LLMUsage(
+        input_tokens=int(input_tokens) if isinstance(input_tokens, int) else None,
+        output_tokens=int(output_tokens) if isinstance(output_tokens, int) else None,
+        total_tokens=int(total_tokens) if isinstance(total_tokens, int) else None,
+    )

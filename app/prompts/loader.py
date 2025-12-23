@@ -24,9 +24,7 @@ def load_prompt(module: str, version: str) -> str:
     Raises:
         PromptNotFoundError: If the prompt file is missing.
     """
-    print('BASE_DIR', BASE_DIR)
     prompt_path = BASE_DIR / 'prompts' / module / version / 'prompt.md'
-    print('prompt_path', prompt_path)
     if not prompt_path.exists():
         raise PromptNotFoundError(f'Prompt not found: {module}/{version}')
     return prompt_path.read_text(encoding='utf-8')
