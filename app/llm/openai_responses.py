@@ -95,9 +95,7 @@ class OpenAIResponsesLLMClient(LLMClient):
             )
 
         async with httpx.AsyncClient() as client:
-            print('FINAL BODY SENT TO OPENAI:\n', json.dumps(body))
             resp = await client.post(url, json=body, headers=headers, timeout=60.0)
-            print('OPENAI RESPONSE:\n', json.dumps(resp.json()))
             resp.raise_for_status()
             data = resp.json()
             return LLMResponse(

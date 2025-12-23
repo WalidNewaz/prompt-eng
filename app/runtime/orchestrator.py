@@ -261,7 +261,6 @@ class Orchestrator:
             )
 
         try:
-            print('SUMMARY RESPONSE:\n', llm_summary_resp)
             summary_obj = json.loads(llm_summary_resp.output_text.strip())
             summary = IncidentSummary.model_validate(summary_obj)
         except (json.JSONDecodeError, ValidationError) as exc:
