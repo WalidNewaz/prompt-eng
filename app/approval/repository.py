@@ -14,7 +14,7 @@ class ApprovalRequestRepositoryProtocol(Protocol):
         """Mark approval as approved"""
         ...
 
-    def mark_rejected(self, approval_id: str, approved_by: str) -> ApprovalRequest:
+    def mark_rejected(self, approval_id: str, approved_by: str, reason: str) -> ApprovalRequest:
         """Mark approval as rejected"""
         ...
 
@@ -22,6 +22,7 @@ class ApprovalRequestRepositoryProtocol(Protocol):
             self,
             trace_id: str,
             workflow: str,
+            safe_user_request: str,
             plan: dict[str, Any],
             requested_by: str,
     ) -> str:
@@ -30,6 +31,10 @@ class ApprovalRequestRepositoryProtocol(Protocol):
 
     def get(self, approval_id: str) -> ApprovalRequest:
         """Get an approval by id"""
+        ...
+
+    def get_all(self) -> list[ApprovalRequest]:
+        """Get all approvals"""
         ...
 
 class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
@@ -56,25 +61,35 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
         self.db.commit()
         return result
 
-    def mark_rejected(self, approval_id: str, approved_by: str) -> ApprovalRequest:
+    def mark_rejected(
+            self,
+            approval_id: str,
+            approved_by: str,
+            reason: str,
+    ) -> ApprovalRequest:
         """Mark approval as rejected"""
         query = text("""
                 UPDATE approval_requests
                 SET
                     status = 'REJECTED',
+                    reason = :reason,
                     decided_at = :decided_at,
                     decided_by = :decided_by
                 WHERE id = :id
+                RETURNING *
                 """)
         params = {
             "id": approval_id,
             "decided_at": datetime.now(),
             "decided_by": approved_by,
+            "reason": reason,
         }
 
         result = self.db.execute(query, params)
+        row = result.mappings().fetchone()
+
         self.db.commit()
-        return result
+        return ApprovalRequest(**row)
 
     def create_pending(
             self,
@@ -143,6 +158,15 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
             decided_at = row.decided_at,
             decided_by = row.decided_by,
         )
+
+    def get_all(self) -> list[ApprovalRequest]:
+        """Get all approvals"""
+        query = text("SELECT * FROM approval_requests")
+        result = self.db.execute(query)
+        return [
+            ApprovalRequest(**row)
+            for row in result.mappings()
+        ]
 
 
 
