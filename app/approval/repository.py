@@ -115,9 +115,7 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
             "requested_at": datetime.now(),
         }
         result = self.db.execute(query, params)
-        # approval_id = result.scalar_one()
         new_row = result.fetchone()
-        print("new_row", new_row)
         self.db.commit()
         approval_id = new_row.id
 

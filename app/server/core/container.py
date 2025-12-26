@@ -1,23 +1,14 @@
 # --------------------------------
 # DI container
 # --------------------------------
-
 from functools import lru_cache
-# from fastapi import Depends
-# from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.llm.openai_responses import OpenAIResponsesLLMClient
 from app.runtime.harness import PromptToolHarness
 from app.runtime.orchestrator import Orchestrator
 from app.tools.http_tool import HttpToolExecutor
-# from app.approval.repository import ApprovalRequestRepository
-# from app.db.connection import get_db
 
-# def get_approval_repo(
-#     db: Session = Depends(get_db),
-# ) -> ApprovalRequestRepository:
-#     return ApprovalRequestRepository(db)
 
 class Container:
     def __init__(self):

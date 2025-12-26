@@ -1,10 +1,9 @@
 # ============================================================
 # Core DB connection
 # ============================================================
-from typing import List
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
+
 import app.approval.models
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./db.sqlite3"
