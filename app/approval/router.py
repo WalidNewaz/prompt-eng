@@ -21,10 +21,11 @@ async def approve_workflow(
     container=Depends(get_container),
 ):
     try:
-        orchestrator = container
+        orchestrator = container.orchestrator
         result = await orchestrator.resume_approved_workflow(
             approval_id=approval_id,
             approved_by=approved_by,
+            approval_repository=approval_repository,
         )
         return {
             "status": "EXECUTED",

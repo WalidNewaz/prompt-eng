@@ -19,6 +19,7 @@ class ApprovalRequest(Base):
     trace_id = Column(String, index=True)
     workflow = Column(String)
     tool_name = Column(String)
+    safe_user_request = Column(String)
     plan = Column(JSON)          # Full plan snapshot
     reason = Column(Text)
     status = Column(Enum(ApprovalStatus), default=ApprovalStatus.PENDING)

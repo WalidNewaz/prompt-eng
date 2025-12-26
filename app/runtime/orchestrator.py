@@ -221,6 +221,7 @@ class Orchestrator:
             approval_id = approval_repository.create_pending(
                 trace_id=trace_id,
                 workflow="incident_broadcast",
+                safe_user_request=safe_user_request,
                 plan=plan.model_dump(),
                 requested_by=user_id,
             )
@@ -254,59 +255,52 @@ class Orchestrator:
         # -------------------------
         # 3) SUMMARIZE (LLM -> IncidentSummary JSON)
         # -------------------------
-        summary_span = Span(name='llm.summarize', trace_id=trace_id)
-        summary_template = load_prompt('incident_summary', summary_version)
-
-        tool_outcomes_json = json.dumps([r.model_dump() for r in records], ensure_ascii=False)
-        summary_prompt = self._renderer.render(
-            summary_template,
-            {'user_request': safe_user_request, 'tool_outcomes_json': tool_outcomes_json},
+        return await self._summarize_execution(
+            trace_id=trace_id,
+            records=records,
+            safe_user_request=safe_user_request,
+            plan=plan,
+            user_id=user_id,
         )
 
-        try:
-            # Structured output schema for summary
-            summary_schema = _load_json_schema(f'{BASE_DIR}/prompts/incident_summary/{summary_version}/schema.json')
-            llm_summary_resp = await self._llm.generate(
-                LLMRequest(
-                    prompt=summary_prompt,
-                    metadata={
-                        'trace_id': trace_id,
-                        'module': 'incident_summary',
-                        'version': summary_version
-                    },
-                    safety_identifier=user_id,
-                    json_schema=summary_schema,
-                )
-            )
-        finally:
-            summary_span.end()
-            log_event(
-                'span.end',
-                trace_id=trace_id,
-                span=summary_span,
-                usage=getattr(llm_summary_resp, 'usage', None).__dict__ if 'llm_summary_resp' in locals() else None,
-            )
 
-        try:
-            summary_obj = json.loads(llm_summary_resp.output_text.strip())
-            summary = IncidentSummary.model_validate(summary_obj)
-        except (json.JSONDecodeError, ValidationError) as exc:
-            log_event(
-                'workflow.summary.invalid',
-                trace_id=trace_id,
-                error=str(exc),
-                raw_output=llm_summary_resp.output_text,
-            )
-            raise OrchestrationError(f'Summary produced invalid JSON: {exc}') from exc
+    async def resume_approved_workflow(
+            self,
+            *,
+            approval_id: str,
+            approved_by: str,
+            approval_repository: ApprovalRequestRepositoryProtocol | None = None,
+    ) -> dict[str, Any]:
+        approval = approval_repository.get(approval_id)
 
-        log_event('workflow.end', trace_id=trace_id, ok=True)
+        if approval.status != "PENDING":
+            raise OrchestrationError("Approval already decided")
 
-        return {
-            'trace_id': trace_id,
-            'plan': plan.model_dump(),
-            'tool_execution_records': [r.model_dump() for r in records],
-            'summary': summary.model_dump(),
-        }
+        approval_repository.mark_approved(approval_id, approved_by)
+
+        plan = IncidentPlan.model_validate(approval.plan)
+
+        log_event(
+            "workflow.approved",
+            trace_id=approval.trace_id,
+            approved_by=approved_by,
+        )
+
+        # Resume exactly where we paused
+        records = await self._execute_plan_dag(
+            trace_id=approval.trace_id,
+            steps=plan.steps,
+            policy=build_policy_for_workflow("incident_broadcast"),
+        )
+
+        # Continue to summary phase (reuse existing logic)
+        return await self._summarize_execution(
+            trace_id=approval.trace_id,
+            records=records,
+            safe_user_request=approval.safe_user_request,
+            plan=plan,
+            user_id=approval.requested_by,
+        )
 
     async def _execute_plan_dag(
             self,
@@ -395,42 +389,71 @@ class Orchestrator:
 
         return records
 
-
-    async def resume_approved_workflow(
+    async def _summarize_execution(
             self,
             *,
-            approval_id: str,
-            approved_by: str,
-            approval_repository: ApprovalRequestRepositoryProtocol | None = None,
-    ) -> dict[str, Any]:
-        approval = approval_repository.get(approval_id)
+            trace_id: str,
+            summary_version: str = 'v1',
+            records: list[ExecutionRecord],
+            safe_user_request: str,
+            plan: IncidentPlan,
+            user_id: str | None = None,
+    ):
+        summary_span = Span(name='llm.summarize', trace_id=trace_id)
+        summary_template = load_prompt('incident_summary', summary_version)
 
-        if approval.status != "PENDING":
-            raise OrchestrationError("Approval already decided")
-
-        approval_repository.mark_approved(approval_id, approved_by)
-
-        plan = IncidentPlan.model_validate(approval.plan_json)
-
-        log_event(
-            "workflow.approved",
-            trace_id=approval.trace_id,
-            approved_by=approved_by,
+        tool_outcomes_json = json.dumps([r.model_dump() for r in records], ensure_ascii=False)
+        summary_prompt = self._renderer.render(
+            summary_template,
+            {'user_request': safe_user_request, 'tool_outcomes_json': tool_outcomes_json},
         )
 
-        # Resume exactly where we paused
-        records = await self._execute_plan_dag(
-            trace_id=approval.trace_id,
-            steps=plan.steps,
-            policy=build_policy_for_workflow("incident_broadcast"),
-        )
+        try:
+            # Structured output schema for summary
+            summary_schema = _load_json_schema(f'{BASE_DIR}/prompts/incident_summary/{summary_version}/schema.json')
+            llm_summary_resp = await self._llm.generate(
+                LLMRequest(
+                    prompt=summary_prompt,
+                    metadata={
+                        'trace_id': trace_id,
+                        'module': 'incident_summary',
+                        'version': summary_version
+                    },
+                    safety_identifier=user_id,
+                    json_schema=summary_schema,
+                )
+            )
+        finally:
+            summary_span.end()
+            log_event(
+                'span.end',
+                trace_id=trace_id,
+                span=summary_span,
+                usage=getattr(llm_summary_resp, 'usage', None).__dict__ if 'llm_summary_resp' in locals() else None,
+            )
 
-        # Continue to summary phase (reuse existing logic)
-        return await self._summarize_execution(
-            trace_id=approval.trace_id,
-            plan=plan,
-            records=records,
-        )
+        try:
+            summary_obj = json.loads(llm_summary_resp.output_text.strip())
+            summary = IncidentSummary.model_validate(summary_obj)
+        except (json.JSONDecodeError, ValidationError) as exc:
+            log_event(
+                'workflow.summary.invalid',
+                trace_id=trace_id,
+                error=str(exc),
+                raw_output=llm_summary_resp.output_text,
+            )
+            raise OrchestrationError(f'Summary produced invalid JSON: {exc}') from exc
+
+        log_event('workflow.end', trace_id=trace_id, ok=True)
+
+        return {
+            'trace_id': trace_id,
+            'plan': plan.model_dump(),
+            'tool_execution_records': [r.model_dump() for r in records],
+            'summary': summary.model_dump(),
+        }
+
+
 
 
 # ------------------------------

@@ -80,6 +80,7 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
             self,
             trace_id: str,
             workflow: str,
+            safe_user_request: str,
             plan: dict[str, Any],
             requested_by: str,
     ) -> str:
@@ -88,6 +89,7 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
                 INSERT INTO approval_requests (
                     trace_id,
                     workflow,
+                    safe_user_request,
                     plan,
                     status,
                     requested_by,
@@ -95,6 +97,7 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
                 ) VALUES (
                     :trace_id,
                     :workflow,
+                    :safe_user_request,
                     :plan,
                     :status,
                     :requested_by,
@@ -105,6 +108,7 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
         params = {
             "trace_id": trace_id,
             "workflow": workflow,
+            "safe_user_request": safe_user_request,
             "plan": json.dumps(plan, ensure_ascii=False),
             "status": 'PENDING',
             "requested_by": requested_by,
@@ -133,6 +137,7 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
             trace_id = row.trace_id,
             workflow = row.workflow,
             tool_name = row.tool_name,
+            safe_user_request = row.safe_user_request,
             plan = json.loads(row.plan),
             reason = row.reason,
             status = row.status,
