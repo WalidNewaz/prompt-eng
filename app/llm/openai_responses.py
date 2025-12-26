@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 
 from app.llm.base import LLMClient, LLMRequest, LLMResponse, LLMUsage
+from app.config import Settings
 
 
 @dataclass(frozen=True)
@@ -45,10 +46,11 @@ class OpenAIResponsesLLMClient(LLMClient):
             model: str = 'gpt-4o-2024-08-06',
             schema: dict[str, Any] | None = None,
             temperature: float | None = None,
+            settings: Settings | None = None,
     ) -> 'OpenAIResponsesLLMClient':
-        api_key = os.environ.get('OPENAI_API_KEY', '').strip()
+        api_key = settings.openai_api_key or os.environ.get('APP_OPENAI_API_KEY', '').strip()
         if not api_key:
-            raise RuntimeError('OPENAI_API_KEY is required to use OpenAIResponsesLLMClient.')
+            raise RuntimeError('APP_OPENAI_API_KEY is required to use OpenAIResponsesLLMClient.')
         cfg = OpenAIResponsesConfig(api_key=api_key, model=model, temperature=temperature)
         return OpenAIResponsesLLMClient(cfg)
 

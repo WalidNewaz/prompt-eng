@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 import re
 
 from pydantic import ValidationError
@@ -46,6 +46,9 @@ from app.security.policy import (
     sanitize_user_text,
 )
 from app.runtime.repair import build_repair_prompt
+from app.runtime.approval import plan_requires_approval
+from app.approval.repository import ApprovalRequestRepositoryProtocol
+from app.approval.models import ApprovalStatus
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 
@@ -57,10 +60,6 @@ class OrchestrationError(RuntimeError):
     """Raised when orchestration fails after retries."""
     pass
 
-def _load_json_schema(path: str) -> dict[str, Any]:
-    p = Path(path)
-    return json.loads(p.read_text(encoding='utf-8'))
-
 
 class Orchestrator:
     """Coordinates prompt execution, validation, and repair."""
@@ -70,11 +69,13 @@ class Orchestrator:
         *,
         llm: LLMClient,
         harness: PromptToolHarness,
+        # approval_repository: ApprovalRequestRepositoryProtocol,
         renderer: PromptRenderer | None = None,
         max_retries: int = 1,
     ) -> None:
         self._llm = llm
         self._harness = harness
+        # self._approval_repository = approval_repository
         self._renderer = renderer or PromptRenderer()
         self._max_retries = max_retries
 
@@ -144,6 +145,7 @@ class Orchestrator:
             tool_plan_version: str = 'v1',
             summary_version: str = 'v1',
             user_id: str | None = None,
+            approval_repository: ApprovalRequestRepositoryProtocol | None = None,
     ) -> dict[str, Any]:
         """Plan -> Execute (DAG) -> Summarize.
 
@@ -211,6 +213,31 @@ class Orchestrator:
         assert_all_tools_allowed(policy, [s.name for s in plan.steps])
 
         log_event('workflow.plan.ok', trace_id=trace_id, steps=len(plan.steps), plan=plan.model_dump())
+
+        # -------------------------
+        # APPROVAL GATE
+        # -------------------------
+        if plan_requires_approval(plan):
+            approval_id = approval_repository.create_pending(
+                trace_id=trace_id,
+                workflow="incident_broadcast",
+                plan=plan.model_dump(),
+                requested_by=user_id,
+            )
+
+            log_event(
+                "workflow.awaiting_approval",
+                trace_id=trace_id,
+                approval_id=approval_id,
+                steps=len(plan.steps),
+            )
+
+            return {
+                "trace_id": trace_id,
+                "status": ApprovalStatus.PENDING.value,
+                "approval_id": approval_id,
+                "plan": plan.model_dump(),
+            }
 
         # -------------------------
         # 2) EXECUTE (DAG: parallel groups + join)
@@ -369,6 +396,51 @@ class Orchestrator:
         return records
 
 
+    async def resume_approved_workflow(
+            self,
+            *,
+            approval_id: str,
+            approved_by: str,
+            approval_repository: ApprovalRequestRepositoryProtocol | None = None,
+    ) -> dict[str, Any]:
+        approval = approval_repository.get(approval_id)
+
+        if approval.status != "PENDING":
+            raise OrchestrationError("Approval already decided")
+
+        approval_repository.mark_approved(approval_id, approved_by)
+
+        plan = IncidentPlan.model_validate(approval.plan_json)
+
+        log_event(
+            "workflow.approved",
+            trace_id=approval.trace_id,
+            approved_by=approved_by,
+        )
+
+        # Resume exactly where we paused
+        records = await self._execute_plan_dag(
+            trace_id=approval.trace_id,
+            steps=plan.steps,
+            policy=build_policy_for_workflow("incident_broadcast"),
+        )
+
+        # Continue to summary phase (reuse existing logic)
+        return await self._summarize_execution(
+            trace_id=approval.trace_id,
+            plan=plan,
+            records=records,
+        )
+
+
+# ------------------------------
+# Helper functions
+# ------------------------------
+
+def _load_json_schema(path: str) -> dict[str, Any]:
+    p = Path(path)
+    return json.loads(p.read_text(encoding='utf-8'))
+
 def _parse_json_object(text: str) -> dict[str, Any]:
     """Parse a single JSON object from model output.
 
@@ -384,11 +456,6 @@ def _parse_json_object(text: str) -> dict[str, Any]:
     if not isinstance(obj, dict):
         raise ValueError('Model output must be a single JSON object.')
     return obj
-
-# ------------------------------
-# Helper functions
-# ------------------------------
-
 
 async def _gather_preserve_order(coros: list[Any]) -> list[Any]:
     """Gather coroutines concurrently while preserving input order."""
