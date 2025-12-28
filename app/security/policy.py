@@ -29,13 +29,20 @@ _MAX_USER_CHARS = 4000
 _MAX_MESSAGE_CHARS = 2000
 
 
+class PolicyViolation(Exception):
+    def __init__(self, tool: ToolName, workflow: str):
+        self.tool = tool
+        self.workflow = workflow
+        super().__init__(f"Tool '{tool.value}' not allowed in workflow '{workflow}'")
+
+
 @dataclass(frozen=True)
 class SecurityPolicy:
     allowed_tools: set[ToolName]
 
-    def assert_tool_allowed(self, tool: ToolName) -> None:
+    def assert_tool_allowed(self, tool: ToolName, workflow: str) -> None:
         if tool not in self.allowed_tools:
-            raise PermissionError(f'Tool not allowed by policy: {tool.value}')
+            raise PolicyViolation(tool, workflow)
 
 
 def sanitize_user_text(user_text: str) -> str:
@@ -83,6 +90,10 @@ def build_policy_for_workflow(workflow: str) -> SecurityPolicy:
     return SecurityPolicy(allowed_tools=set())
 
 
-def assert_all_tools_allowed(policy: SecurityPolicy, tools: Iterable[ToolName]) -> None:
+def assert_all_tools_allowed(
+        policy: SecurityPolicy,
+        tools: Iterable[ToolName],
+        workflow: str
+) -> None:
     for t in tools:
-        policy.assert_tool_allowed(t)
+        policy.assert_tool_allowed(t, workflow=workflow)
