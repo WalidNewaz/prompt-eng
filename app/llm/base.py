@@ -51,8 +51,9 @@ class LLMResponse:
     """
 
     output_text: str
-    raw: dict[str, Any]
+    raw: dict[str, Any] = None
     usage: LLMUsage = LLMUsage()
+    model: str | None = None
 
 
 class LLMClient(ABC):

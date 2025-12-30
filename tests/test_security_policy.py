@@ -3,13 +3,16 @@ from __future__ import annotations
 import pytest
 
 from app.schemas import ToolName
-from app.security.policy import SecurityPolicy, sanitize_user_text
+from app.security.policy import SecurityPolicy, sanitize_user_text, PolicyViolation
 
 
 def test_policy_rejects_unallowed_tool() -> None:
-    policy = SecurityPolicy(allowed_tools={ToolName.SEND_EMAIL})
-    with pytest.raises(PermissionError):
-        policy.assert_tool_allowed(ToolName.SEND_SLACK_MESSAGE)
+    policy = SecurityPolicy(
+        allowed_tools={ToolName.SEND_EMAIL},
+        approval_required_tools=set()
+    )
+    with pytest.raises(PolicyViolation):
+        policy.assert_tool_allowed(ToolName.SEND_SLACK_MESSAGE, workflow="test")
 
 
 def test_sanitize_user_text_bounds_length() -> None:

@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4.1-mini"
 
     # Tool server
-    tool_base_url: str = "http://127.0.0.1:8001"
+    tool_base_url: str = "http://127.0.0.1:8001/v1/tools"
 
     class Config:
         env_file = ".env"

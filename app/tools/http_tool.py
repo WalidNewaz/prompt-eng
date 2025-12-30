@@ -34,12 +34,12 @@ class HttpToolExecutor(ToolExecutor):
         url = f'{self._base_url}{endpoint}'
 
         if self._client is not None:
-            resp = await self._client.post(url, json=args, timeout=10.0)
+            resp = await self._client.post(url, json=args, timeout=120.0)
             resp.raise_for_status()
             return resp.json()
 
         async with httpx.AsyncClient() as client:
-            resp = await client.post(url, json=args, timeout=10.0)
+            resp = await client.post(url, json=args, timeout=120.0)
             resp.raise_for_status()
             return resp.json()
 

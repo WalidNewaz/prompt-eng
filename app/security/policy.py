@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from app.schemas import ToolName
-
+from app.security.policy_decision import PolicyDecision, PolicyOutcome
 
 _INJECTION_PATTERNS = [
     r'(?i)\bignore\b.*\binstructions\b',
@@ -39,6 +39,31 @@ class PolicyViolation(Exception):
 @dataclass(frozen=True)
 class SecurityPolicy:
     allowed_tools: set[ToolName]
+    approval_required_tools: set[ToolName]
+
+    def is_allowed(self, tool: ToolName) -> bool:
+        if len(self.allowed_tools) > 0 and tool not in self.allowed_tools:
+            return False
+        if len(self.approval_required_tools) > 0 and tool not in self.approval_required_tools:
+            return False
+        return True
+
+    def evaluate_tool(self, tool: ToolName) -> PolicyDecision:
+        if tool not in self.allowed_tools:
+            return PolicyDecision(
+                outcome=PolicyOutcome.DENY,
+                tool=tool,
+                reason=f"Tool '{tool.value}' not allowed by policy"
+            )
+
+        if tool in self.approval_required_tools:
+            return PolicyDecision(
+                outcome=PolicyOutcome.REQUIRE_APPROVAL,
+                tool=tool,
+                reason=f"Tool '{tool.value}' requires human approval"
+            )
+
+        return PolicyDecision(outcome=PolicyOutcome.ALLOW)
 
     def assert_tool_allowed(self, tool: ToolName, workflow: str) -> None:
         if tool not in self.allowed_tools:
@@ -76,18 +101,27 @@ def build_policy_for_workflow(workflow: str) -> SecurityPolicy:
                 ToolName.SEND_SLACK_MESSAGE,
                 ToolName.SEND_EMAIL,
                 ToolName.REQUEST_MISSING_INFO,
-            }
+            },
+            approval_required_tools=set(),
         )
-    if workflow == 'incident_broadcast':
+    if workflow == "incident_broadcast":
         return SecurityPolicy(
             allowed_tools={
                 ToolName.SEND_SLACK_MESSAGE,
                 ToolName.SEND_EMAIL,
                 ToolName.REQUEST_MISSING_INFO,
-            }
+            },
+            approval_required_tools={
+                ToolName.SEND_SLACK_MESSAGE,
+                ToolName.SEND_EMAIL,
+            },
         )
+
     # Default: no tools
-    return SecurityPolicy(allowed_tools=set())
+    return SecurityPolicy(
+        allowed_tools=set(),
+        approval_required_tools=set(),
+    )
 
 
 def assert_all_tools_allowed(
@@ -97,3 +131,9 @@ def assert_all_tools_allowed(
 ) -> None:
     for t in tools:
         policy.assert_tool_allowed(t, workflow=workflow)
+
+def evaluate_plan(
+    policy: SecurityPolicy,
+    tools: Iterable[ToolName],
+) -> list[PolicyDecision]:
+    return [policy.evaluate_tool(t) for t in tools]

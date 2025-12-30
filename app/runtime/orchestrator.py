@@ -44,8 +44,10 @@ from app.security.policy import (
     build_policy_for_workflow,
     sanitize_message,
     sanitize_user_text,
+    evaluate_plan,
     PolicyViolation,
 )
+from app.security.policy_decision import PolicyOutcome
 from app.runtime.repair import build_repair_prompt
 from app.runtime.approval import plan_requires_approval
 from app.approval.repository import ApprovalRequestRepositoryProtocol
@@ -210,35 +212,52 @@ class Orchestrator:
             )
             raise OrchestrationError(f'Planner produced invalid plan: {exc}') from exc
 
-        try:
+            # -------------------------
+            # POLICY CHECK
+            # -------------------------
+
             # Security: allowlist tools in plan
-            assert_all_tools_allowed(policy, [s.name for s in plan.steps], workflow='incident_broadcast')
-            # TODO: Remediate when error occurs
-        except PolicyViolation as exc:
-            log_event(
-                "workflow.policy.violation",
-                trace_id=trace_id,
-                tool=exc.tool.value,
-                workflow=exc.workflow,
-                plan=plan.model_dump(),
-            )
+            # assert_all_tools_allowed(policy, [s.name for s in plan.steps], workflow='incident_broadcast')
+            decisions = evaluate_plan(policy, [s.name for s in plan.steps])
+            for d in decisions:
+                if d.outcome == PolicyOutcome.DENY:
+                    log_event(
+                        "workflow.policy.denied",
+                        trace_id=trace_id,
+                        tool=d.tool.value,
+                        reason=d.reason,
+                    )
+                    raise OrchestrationError(d.reason)
 
-            # Option A: Require approval
-            approval_id = approval_repository.create_pending(
-                trace_id=trace_id,
-                workflow=exc.workflow,
-                tool_name=exc.tool.value,
-                safe_user_request=safe_user_request,
-                plan=plan.model_dump(),
-                reason=f"Tool '{exc.tool.value}' not allowed by policy",
-                requested_by=user_id,
-            )
+            approval_needed = [
+                d for d in decisions
+                if d.outcome == PolicyOutcome.REQUIRE_APPROVAL
+            ]
 
-            return {
-                "status": "approval_required",
-                "approval_id": approval_id,
-                "reason": "Policy violation requires human review",
-            }
+            if approval_needed:
+                approval_id = approval_repository.create_pending(
+                    trace_id=trace_id,
+                    workflow="incident_broadcast",
+                    tool_name=", ".join(d.tool.value for d in approval_needed),
+                    safe_user_request=safe_user_request,
+                    plan=plan.model_dump(),
+                    reason="One or more tools require approval",
+                    requested_by=user_id,
+                )
+
+                log_event(
+                    "workflow.awaiting_approval",
+                    trace_id=trace_id,
+                    approval_id=approval_id,
+                    tools=[d.tool.value for d in approval_needed],
+                )
+
+                return {
+                    "status": "approval_required",
+                    "approval_id": approval_id,
+                    "tools": [d.tool.value for d in approval_needed],
+                }
+
 
         log_event(
              'workflow.plan.ok',

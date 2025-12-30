@@ -44,19 +44,19 @@ class RequestMissingInfoOut(BaseModel):
     prompt_to_user: str
 
 
-@router.post('/tools/send-slack', response_model=SendSlackMessageOut)
+@router.post('/send-slack', response_model=SendSlackMessageOut)
 async def send_slack(payload: SendSlackMessageIn) -> SendSlackMessageOut:
     # In production, this might call Slack APIs or enqueue a job.
     return SendSlackMessageOut(ok=True, tool='send_slack_message', message_id=str(uuid.uuid4()))
 
 
-@router.post('/tools/send-email', response_model=SendEmailOut)
+@router.post('/send-email', response_model=SendEmailOut)
 async def send_email(payload: SendEmailIn) -> SendEmailOut:
     # In production, this might call SendGrid, SES, or an internal mail relay.
     return SendEmailOut(ok=True, tool='send_email', provider_message_id=f'msg_{uuid.uuid4()}')
 
 
-@router.post('/tools/request-missing-info', response_model=RequestMissingInfoOut)
+@router.post('/request-missing-info', response_model=RequestMissingInfoOut)
 async def request_missing_info(payload: RequestMissingInfoIn) -> RequestMissingInfoOut:
     missing = ', '.join(payload.missing_fields)
     text = f'I need the following fields: {missing}. {payload.question}'
