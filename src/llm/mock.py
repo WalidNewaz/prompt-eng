@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.llm.base import LLMClient, LLMRequest, LLMResponse
+from src.llm.base import LLMClient, LLMRequest, LLMResponse
 
 
 class MockLLMClient(LLMClient):

@@ -13,8 +13,8 @@ import re
 from dataclasses import dataclass
 from typing import Iterable
 
-from app.schemas import ToolName
-from app.security.policy_decision import PolicyDecision, PolicyOutcome
+from src.schemas import ToolName
+from src.security.policy_decision import PolicyDecision, PolicyOutcome
 
 _INJECTION_PATTERNS = [
     r'(?i)\bignore\b.*\binstructions\b',

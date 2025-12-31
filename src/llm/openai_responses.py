@@ -18,8 +18,8 @@ from typing import Any
 
 import httpx
 
-from app.llm.base import LLMClient, LLMRequest, LLMResponse, LLMUsage
-from app.config import Settings
+from src.llm.base import LLMClient, LLMRequest, LLMResponse, LLMUsage
+from src.config import Settings
 
 
 @dataclass(frozen=True)

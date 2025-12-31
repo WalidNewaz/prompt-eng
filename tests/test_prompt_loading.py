@@ -1,4 +1,4 @@
-from app.prompts.loader import load_prompt, PromptNotFoundError
+from src.prompts.loader import load_prompt, PromptNotFoundError
 import pytest
 
 

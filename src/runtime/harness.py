@@ -19,9 +19,9 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from app.schemas import ToolCall, ToolName, validate_tool_args, validate_tool_call_payload, validate_tool_result
-from app.tools.base import ToolExecutor
-from app.tools.http_tool import HttpToolExecutor
+from src.schemas import ToolCall, ToolName, validate_tool_args, validate_tool_call_payload, validate_tool_result
+from src.tools.base import ToolExecutor
+from src.tools.http_tool import HttpToolExecutor
 
 
 class ToolExecutionError(RuntimeError):

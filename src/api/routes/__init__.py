@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.approval.router import router as approvals_router
+from src.approval.router import router as approvals_router
 from .tools import router as tools_router
 from .demo import router as demo_router
 

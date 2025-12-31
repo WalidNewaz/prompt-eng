@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.schemas import ToolName, validate_tool_args, validate_tool_call_payload, validate_tool_result
+from src.schemas import ToolName, validate_tool_args, validate_tool_call_payload, validate_tool_result
 
 
 def test_validate_tool_call_payload_ok() -> None:

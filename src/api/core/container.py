@@ -3,11 +3,11 @@
 # --------------------------------
 from functools import lru_cache
 
-from app.config import settings
-from app.llm.openai_responses import OpenAIResponsesLLMClient
-from app.runtime.harness import PromptToolHarness
-from app.runtime.orchestrator import Orchestrator
-from app.tools.http_tool import HttpToolExecutor
+from src.config import settings
+from src.llm.openai_responses import OpenAIResponsesLLMClient
+from src.runtime.harness import PromptToolHarness
+from src.runtime.orchestrator import Orchestrator
+from src.tools.http_tool import HttpToolExecutor
 
 
 class Container:

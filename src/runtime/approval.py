@@ -1,4 +1,4 @@
-from app.security.tool_policy import TOOL_APPROVAL_POLICY, ApprovalPolicy
+from src.security.tool_policy import TOOL_APPROVAL_POLICY, ApprovalPolicy
 
 def plan_requires_approval(plan) -> bool:
     for step in plan.steps:

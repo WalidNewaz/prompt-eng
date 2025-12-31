@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel
 
-from app.runtime.workflows import PlannedToolCall
-from app.schemas import ToolName
+from src.runtime.workflows import PlannedToolCall
+from src.schemas import ToolName
 
 
 def test_planned_tool_call_accepts_parallel_group() -> None:

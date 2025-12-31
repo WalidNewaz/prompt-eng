@@ -4,8 +4,8 @@ import httpx
 import pytest
 from httpx import MockTransport
 
-from app.schemas import ToolName
-from app.tools.http_tool import HttpToolExecutor
+from src.schemas import ToolName
+from src.tools.http_tool import HttpToolExecutor
 
 from tests.fixtures.tool_service_stub import tool_service_stub
 

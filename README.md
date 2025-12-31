@@ -15,7 +15,7 @@ This repo is a minimal, production-minded harness that demonstrates:
 ## Run the tool server
 
 ```bash
-poetry run uvicorn app.api.fastapi_tool_server:app --reload --port 8001
+poetry run uvicorn src.app.main:app --reload --port 8001
 ```
 
 ## Run the harness demo (against the running server)

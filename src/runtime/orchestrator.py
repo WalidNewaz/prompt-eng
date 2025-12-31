@@ -23,23 +23,23 @@ import re
 
 from pydantic import ValidationError
 
-from app.llm.base import LLMClient, LLMRequest
-from app.observability.tracing import Span, log_event, new_trace_id
-from app.prompts.loader import load_prompt
-from app.runtime.harness import PromptToolHarness, ToolExecutionError
-from app.runtime.renderer import PromptRenderer
-from app.runtime.workflows import (
+from src.llm.base import LLMClient, LLMRequest
+from src.observability.tracing import Span, log_event, new_trace_id
+from src.prompts.loader import load_prompt
+from src.runtime.harness import PromptToolHarness, ToolExecutionError
+from src.runtime.renderer import PromptRenderer
+from src.runtime.workflows import (
     ExecutionRecord,
     IncidentPlan,
     IncidentSummary,
     PlannedToolCall,
     to_toolcall_dict,
 )
-from app.schemas import (
+from src.schemas import (
     ToolName,
     validate_tool_call_payload
 )
-from app.security.policy import (
+from src.security.policy import (
     assert_all_tools_allowed,
     build_policy_for_workflow,
     sanitize_message,
@@ -47,11 +47,11 @@ from app.security.policy import (
     evaluate_plan,
     PolicyViolation,
 )
-from app.security.policy_decision import PolicyOutcome
-from app.runtime.repair import build_repair_prompt
-from app.runtime.approval import plan_requires_approval
-from app.approval.repository import ApprovalRequestRepositoryProtocol
-from app.approval.models import ApprovalStatus
+from src.security.policy_decision import PolicyOutcome
+from src.runtime.repair import build_repair_prompt
+from src.runtime.approval import plan_requires_approval
+from src.approval.repository import ApprovalRequestRepositoryProtocol
+from src.approval.models import ApprovalStatus
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 

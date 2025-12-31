@@ -1,4 +1,4 @@
-from app.runtime.repair import build_repair_prompt
+from src.runtime.repair import build_repair_prompt
 
 
 def test_build_repair_prompt_contains_error() -> None:

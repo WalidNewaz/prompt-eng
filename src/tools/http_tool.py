@@ -6,8 +6,8 @@ from typing import Any
 
 import httpx
 
-from app.schemas import ToolName
-from app.tools.base import ToolExecutor
+from src.schemas import ToolName
+from src.tools.base import ToolExecutor
 
 
 class HttpToolExecutor(ToolExecutor):

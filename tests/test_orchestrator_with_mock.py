@@ -5,9 +5,9 @@ import pytest
 import json
 from httpx import MockTransport
 
-from app.runtime.harness import PromptToolHarness
-from app.runtime.orchestrator import Orchestrator
-from app.tools.http_tool import HttpToolExecutor
+from src.runtime.harness import PromptToolHarness
+from src.runtime.orchestrator import Orchestrator
+from src.tools.http_tool import HttpToolExecutor
 
 from tests.fixtures.mock_llm_client import MockLLMClient
 from tests.fixtures.tool_service_stub import tool_service_stub

@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas import ToolCall, ToolName
+from src.schemas import ToolCall, ToolName
 
 
 class PlannedToolCall(BaseModel):

@@ -6,11 +6,11 @@ import json
 
 import httpx
 
-from app.llm.openai_responses import OpenAIResponsesLLMClient
-from app.runtime.harness import PromptToolHarness
-from app.runtime.orchestrator import Orchestrator
-from app.api.fastapi_tool_server import app as tool_app
-from app.tools.http_tool import HttpToolExecutor
+from src.llm.openai_responses import OpenAIResponsesLLMClient
+from src.runtime.harness import PromptToolHarness
+from src.runtime.orchestrator import Orchestrator
+from src.api.fastapi_tool_server import app as tool_app
+from src.tools.http_tool import HttpToolExecutor
 
 
 async def main() -> None:

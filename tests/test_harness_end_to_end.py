@@ -5,11 +5,11 @@ import pytest
 import httpx
 from httpx import MockTransport
 
-from app.runtime.harness import PromptToolHarness, ToolExecutionError
-from app.runtime.orchestrator import Orchestrator
-from app.security.policy import SecurityPolicy
-from app.tools.http_tool import HttpToolExecutor
-from app.schemas import ToolName
+from src.runtime.harness import PromptToolHarness, ToolExecutionError
+from src.runtime.orchestrator import Orchestrator
+from src.security.policy import SecurityPolicy
+from src.tools.http_tool import HttpToolExecutor
+from src.schemas import ToolName
 
 from tests.fixtures.mock_llm_client import MockLLMClient
 from tests.fixtures.tool_service_stub import tool_service_stub

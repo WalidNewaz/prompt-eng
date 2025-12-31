@@ -3,8 +3,8 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from app.llm.base import LLMRequest
-from app.llm.openai_responses import OpenAIResponsesConfig, OpenAIResponsesLLMClient
+from src.llm.base import LLMRequest
+from src.llm.openai_responses import OpenAIResponsesConfig, OpenAIResponsesLLMClient
 
 
 @pytest.mark.asyncio
