@@ -9,8 +9,8 @@ from app.runtime.harness import PromptToolHarness
 from app.runtime.orchestrator import Orchestrator
 from app.tools.http_tool import HttpToolExecutor
 
-from tests.mocks.mock_llm_client import MockLLMClient
-from tests.mocks.tool_service_stub import tool_service_stub
+from tests.fixtures.mock_llm_client import MockLLMClient
+from tests.fixtures.tool_service_stub import tool_service_stub
 
 
 @pytest.mark.asyncio

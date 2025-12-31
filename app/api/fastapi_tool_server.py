@@ -19,7 +19,7 @@ import uuid
 from fastapi import FastAPI
 from pydantic import BaseModel, EmailStr, Field
 
-from app.server.routes import register_routes
+from app.api.routes import register_routes
 
 tags_metadata = [
     {

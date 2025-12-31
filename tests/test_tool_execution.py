@@ -7,7 +7,7 @@ from httpx import MockTransport
 from app.schemas import ToolName
 from app.tools.http_tool import HttpToolExecutor
 
-from tests.mocks.tool_service_stub import tool_service_stub
+from tests.fixtures.tool_service_stub import tool_service_stub
 
 
 @pytest.mark.anyio

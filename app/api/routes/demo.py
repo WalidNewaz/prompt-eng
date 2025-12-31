@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from app.server.core.container import get_container
+from app.api.core.container import get_container
 from app.db.connection import get_db
 from app.approval.repository import ApprovalRequestRepository
 

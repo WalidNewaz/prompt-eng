@@ -11,8 +11,8 @@ from app.security.policy import SecurityPolicy
 from app.tools.http_tool import HttpToolExecutor
 from app.schemas import ToolName
 
-from tests.mocks.mock_llm_client import MockLLMClient
-from tests.mocks.tool_service_stub import tool_service_stub
+from tests.fixtures.mock_llm_client import MockLLMClient
+from tests.fixtures.tool_service_stub import tool_service_stub
 
 
 # ------------------------------------------------------------------------------

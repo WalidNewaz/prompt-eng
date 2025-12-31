@@ -9,7 +9,7 @@ import httpx
 from app.llm.openai_responses import OpenAIResponsesLLMClient
 from app.runtime.harness import PromptToolHarness
 from app.runtime.orchestrator import Orchestrator
-from app.server.fastapi_tool_server import app as tool_app
+from app.api.fastapi_tool_server import app as tool_app
 from app.tools.http_tool import HttpToolExecutor
 
 
