@@ -1,11 +1,16 @@
-from fastapi import APIRouter, HTTPException
-from fastapi import Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.api.core.container import get_container
 from src.db.connection import get_db
-from src.approval.repository import ApprovalRequestRepository
-from src.approval.models import ApprovalStatus
+from src.domain.approval.repository import ApprovalRequestRepository
+from src.domain.approval.models import ApprovalStatus
+from src.domain.approval.entities import (
+    ApprovalRequestEntity as ApprovalRequest,
+    Pagination,
+    Sorting
+)
+from src.api.schemas import ApprovalFilters, PaginatedResponse, PaginationMeta
 
 router = APIRouter(prefix="/approvals", tags=["Approvals"])
 
@@ -14,12 +19,54 @@ def get_approval_repo(
 ) -> ApprovalRequestRepository:
     return ApprovalRequestRepository(db)
 
-@router.get("")
+
+
+@router.get(
+    "",
+    summary="List approval requests",
+    description="Returns approval requests filtered by status, users, workflow, and pagination.",
+    response_model=PaginatedResponse[ApprovalRequest],
+)
 async def get_approvals(
+    q: ApprovalFilters = Depends(),
     approval_repository: ApprovalRequestRepository = Depends(get_approval_repo),
 ):
-    """List all approvals."""
-    return approval_repository.get_all()
+    """
+    List approval requests with optional filters.
+
+    Query Parameters:
+    - status: Filter by approval status
+    - requested_by: Filter by requestor
+    - decided_by: Filter by approver/rejector
+    - workflow: Filter by workflow name or ID
+    - limit: Page size (default: 50)
+    - offset: Pagination offset (default: 0)
+    """
+    filters = ApprovalFilters(
+        status=q.status.value if q.status else None,
+        requested_by=q.requested_by,
+        decided_by=q.decided_by,
+        workflow=q.workflow,
+    )
+    paging = Pagination(limit=q.limit, offset=q.offset)
+    sorting = Sorting(sort_by=q.sort_by.value, sort_order=q.sort_order.value)
+
+    page = approval_repository.get_all(
+        filters=filters,
+        paging=paging,
+        sorting=sorting
+    )
+
+    return PaginatedResponse(
+        data=page.data,
+        meta=PaginationMeta(
+            total=page.meta.total,
+            limit=page.meta.limit,
+            offset=page.meta.offset,
+            has_next=page.meta.has_next,
+            has_previous=page.meta.has_previous,
+        ),
+    )
 
 @router.get("/{approval_id}")
 async def get_approval(

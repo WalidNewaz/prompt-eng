@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.api.core.container import get_container
 from src.db.connection import get_db
-from src.approval.repository import ApprovalRequestRepository
+from src.domain.approval.repository import ApprovalRequestRepository
 
 
 router = APIRouter(prefix="/demo", tags=["Demo"])

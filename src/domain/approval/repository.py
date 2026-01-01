@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 import json
 
-from .entities import ApprovalRequestEntity as ApprovalRequest
+from src.api.schemas import ApprovalFilters
+from src.domain.approval.entities import (
+    ApprovalRequestEntity as ApprovalRequest,
+    Pagination,
+    Sorting,
+    PageResult,
+    PageMeta
+)
 
 class ApprovalRequestRepositoryProtocol(Protocol):
     def mark_approved(self, approval_id: str, approved_by: str) -> ApprovalRequest:
@@ -38,6 +45,13 @@ class ApprovalRequestRepositoryProtocol(Protocol):
         ...
 
 class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
+    # Allowed sort columns at persistence layer (defense in depth)
+    _SORT_COLUMNS = {
+        "requested_at": "requested_at",
+        "status": "status",
+        "workflow": "workflow",
+    }
+
     def __init__(self, db: Session):
         self.db = db
 
@@ -159,14 +173,89 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
             decided_by = row.decided_by,
         )
 
-    def get_all(self) -> list[ApprovalRequest]:
-        """Get all approvals"""
-        query = text("SELECT * FROM approval_requests")
-        result = self.db.execute(query)
-        return [
+    def get_all(
+            self,
+            filters: ApprovalFilters,
+            paging: Pagination,
+            sorting: Sorting
+    ) -> PageResult:
+        """
+        Retrieve approval requests matching the given filters.
+
+        All filters are optional.
+        Pagination is always applied.
+        """
+        conditions: list[str] = []
+        params: dict[str, object] = {}
+
+        # --- Filters ---
+        if filters.status:
+            conditions.append("status = :status")
+            params["status"] = filters.status.value
+
+        if filters.requested_by:
+            conditions.append("requested_by = :requested_by")
+            params["requested_by"] = filters.requested_by
+
+        if filters.decided_by:
+            conditions.append("decided_by = :decided_by")
+            params["decided_by"] = filters.decided_by
+
+        if filters.workflow:
+            conditions.append("workflow = :workflow")
+            params["workflow"] = filters.workflow
+
+        where_clause = ""
+        if conditions:
+            where_clause = "WHERE " + " AND ".join(conditions)
+
+        # --- Total Count ---
+        count_query = text(f"""
+            SELECT COUNT(*) AS total
+            FROM approval_requests
+            {where_clause}
+        """)
+
+        total = int(self.db.execute(count_query, params).scalar_one())
+
+        # ORDER BY: use allow-list mapping (cannot bind column names safely)
+        sort_col = self._SORT_COLUMNS.get(sorting.sort_by, "requested_at")
+        sort_dir = "ASC" if sorting.sort_order == "asc" else "DESC"
+        order_clause = f"ORDER BY {sort_col} {sort_dir}"
+
+        # --- Data Query ---
+        data_query = text(f"""
+            SELECT *
+            FROM approval_requests
+            {where_clause}
+            {order_clause}
+            LIMIT :limit
+            OFFSET :offset
+        """)
+
+        params["limit"] = filters.limit
+        params["offset"] = filters.offset
+
+        result = self.db.execute(data_query, params)
+
+        records = [
             ApprovalRequest(**row)
             for row in result.mappings()
         ]
+
+        # --- Pagination Metadata ---
+        meta = PageMeta(
+            total=total,
+            limit=filters.limit,
+            offset=filters.offset,
+            has_next=(filters.offset + filters.limit) < total,
+            has_previous=filters.offset > 0,
+        )
+
+        return PageResult(
+            data=records,
+            meta=meta
+        )
 
 
 

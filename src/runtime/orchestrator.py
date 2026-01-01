@@ -40,18 +40,17 @@ from src.schemas import (
     validate_tool_call_payload
 )
 from src.security.policy import (
-    assert_all_tools_allowed,
     build_policy_for_workflow,
     sanitize_message,
     sanitize_user_text,
     evaluate_plan,
-    PolicyViolation,
 )
 from src.security.policy_decision import PolicyOutcome
 from src.runtime.repair import build_repair_prompt
 from src.runtime.approval import plan_requires_approval
-from src.approval.repository import ApprovalRequestRepositoryProtocol
-from src.approval.models import ApprovalStatus
+from src.domain.approval.repository import ApprovalRequestRepositoryProtocol
+from src.domain.approval.models import ApprovalStatus
+from src.runtime.readiness import evaluate_readiness, ReadinessOutcome
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 
@@ -293,13 +292,35 @@ class Orchestrator:
             }
 
         # -------------------------
+        # READINESS CHECK
+        # -------------------------
+        readiness = evaluate_readiness(plan)
+
+        if readiness.outcome == ReadinessOutcome.NEEDS_INPUT:
+            log_event(
+                "workflow.needs_input",
+                trace_id=trace_id,
+                missing=readiness.missing_fields,
+            )
+
+            return {
+                "status": "awaiting_user_input",
+                "missing_fields": readiness.missing_fields,
+                "reason": readiness.reason,
+            }
+
+        # -------------------------
         # 2) EXECUTE (DAG: parallel groups + join)
         # -------------------------
         exec_span = Span(name='tools.execute_dag', trace_id=trace_id)
         exec_span.attributes['step_count'] = len(plan.steps)
 
         try:
-            records = await self._execute_plan_dag(trace_id=trace_id, steps=plan.steps, policy=policy)
+            records = await self._execute_plan_dag(
+                trace_id=trace_id,
+                steps=plan.steps,
+                policy=policy
+            )
         finally:
             exec_span.end()
             log_event('span.end', trace_id=trace_id, span=exec_span)
@@ -337,6 +358,24 @@ class Orchestrator:
             trace_id=approval.trace_id,
             approved_by=approved_by,
         )
+
+        # -------------------------
+        # READINESS CHECK
+        # -------------------------
+        readiness = evaluate_readiness(plan)
+
+        if readiness.outcome == ReadinessOutcome.NEEDS_INPUT:
+            log_event(
+                "workflow.needs_input",
+                trace_id=approval.trace_id,
+                missing=readiness.missing_fields,
+            )
+
+            return {
+                "status": "awaiting_user_input",
+                "missing_fields": readiness.missing_fields,
+                "reason": readiness.reason,
+            }
 
         # Resume exactly where we paused
         records = await self._execute_plan_dag(
