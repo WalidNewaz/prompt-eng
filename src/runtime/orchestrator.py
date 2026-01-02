@@ -23,44 +23,31 @@ import re
 
 from pydantic import ValidationError
 
+from src.core.errors import LLMParseError, OrchestrationError
 from src.llm.base import LLMClient, LLMRequest
 from src.observability.tracing import Span, log_event, new_trace_id
 from src.prompts.loader import load_prompt
 from src.runtime.harness import PromptToolHarness, ToolExecutionError
 from src.runtime.renderer import PromptRenderer
-from src.runtime.workflows import (
-    ExecutionRecord,
-    IncidentPlan,
-    IncidentSummary,
-    PlannedToolCall,
-    to_toolcall_dict,
-)
-from src.schemas import (
-    ToolName,
-    validate_tool_call_payload
-)
+from src.runtime.workflows import IncidentPlan
+from src.schemas import validate_tool_call_payload
 from src.security.policy import (
     build_policy_for_workflow,
-    sanitize_message,
     sanitize_user_text,
     evaluate_plan,
 )
 from src.security.policy_decision import PolicyOutcome
 from src.runtime.repair import build_repair_prompt
-from src.runtime.approval import plan_requires_approval
 from src.domain.approval.repository import ApprovalRequestRepositoryProtocol
-from src.domain.approval.models import ApprovalStatus
 from src.runtime.readiness import evaluate_readiness, ReadinessOutcome
+from .utils import normalize_usage
+from .plan_executor import PlanExecutor
+from .prompt_utils import load_json_schema
+from .workflow_summarizer import WorkflowSummarizer
+from .llm_workflow_summarizer import LLMWorkflowSummarizer
+
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-
-
-class LLMParseError(Exception):
-    pass
-
-class OrchestrationError(RuntimeError):
-    """Raised when orchestration fails after retries."""
-    pass
 
 
 class Orchestrator:
@@ -71,14 +58,19 @@ class Orchestrator:
         *,
         llm: LLMClient,
         harness: PromptToolHarness,
-        # approval_repository: ApprovalRequestRepositoryProtocol,
+        plan_executor: PlanExecutor | None = None,
         renderer: PromptRenderer | None = None,
+        summarizer: WorkflowSummarizer | None = None,
         max_retries: int = 1,
     ) -> None:
         self._llm = llm
         self._harness = harness
-        # self._approval_repository = approval_repository
+        self._plan_executor = plan_executor or PlanExecutor(harness=harness)
         self._renderer = renderer or PromptRenderer()
+        self._summarizer = summarizer or LLMWorkflowSummarizer(
+            llm=llm,
+            renderer=self._renderer,
+        )
         self._max_retries = max_retries
 
     async def run_notification_router(
@@ -171,7 +163,7 @@ class Orchestrator:
         plan_prompt = self._renderer.render(plan_template, {'user_request': safe_user_request})
 
         # Structured output schema for planner
-        plan_schema = _load_json_schema(f'{BASE_DIR}/prompts/incident_plan/{tool_plan_version}/schema.json')
+        plan_schema = load_json_schema(f'{BASE_DIR}/prompts/incident_plan/{tool_plan_version}/schema.json')
 
         try:
             llm_plan_resp = await self._llm.generate(
@@ -190,11 +182,16 @@ class Orchestrator:
             )
         finally:
             plan_span.end()
+            usage = (
+                normalize_usage(getattr(llm_plan_resp, "usage", None))
+                if "llm_plan_resp" in locals()
+                else None
+            )
             log_event(
                 'span.end',
                 trace_id=trace_id,
                 span=plan_span,
-                usage=getattr(llm_plan_resp, 'usage', None).__dict__ if 'llm_plan_resp' in locals() else None,
+                usage=usage,
             )
 
         # Parse + validate plan (Pydantic)
@@ -211,51 +208,52 @@ class Orchestrator:
             )
             raise OrchestrationError(f'Planner produced invalid plan: {exc}') from exc
 
-            # -------------------------
-            # POLICY CHECK
-            # -------------------------
-
-            # Security: allowlist tools in plan
-            # assert_all_tools_allowed(policy, [s.name for s in plan.steps], workflow='incident_broadcast')
-            decisions = evaluate_plan(policy, [s.name for s in plan.steps])
-            for d in decisions:
-                if d.outcome == PolicyOutcome.DENY:
-                    log_event(
-                        "workflow.policy.denied",
-                        trace_id=trace_id,
-                        tool=d.tool.value,
-                        reason=d.reason,
-                    )
-                    raise OrchestrationError(d.reason)
-
-            approval_needed = [
-                d for d in decisions
-                if d.outcome == PolicyOutcome.REQUIRE_APPROVAL
-            ]
-
-            if approval_needed:
-                approval_id = approval_repository.create_pending(
-                    trace_id=trace_id,
-                    workflow="incident_broadcast",
-                    tool_name=", ".join(d.tool.value for d in approval_needed),
-                    safe_user_request=safe_user_request,
-                    plan=plan.model_dump(),
-                    reason="One or more tools require approval",
-                    requested_by=user_id,
-                )
-
+        # -------------------------
+        # POLICY CHECK
+        # -------------------------
+        # Security: allowlist tools in plan
+        decisions = evaluate_plan(policy, [s.name for s in plan.steps])
+        for d in decisions:
+            if d.outcome == PolicyOutcome.DENY:
                 log_event(
-                    "workflow.awaiting_approval",
+                    "workflow.policy.denied",
                     trace_id=trace_id,
-                    approval_id=approval_id,
-                    tools=[d.tool.value for d in approval_needed],
+                    tool=d.tool.value,
+                    reason=d.reason,
                 )
+                raise OrchestrationError(d.reason)
 
-                return {
-                    "status": "approval_required",
-                    "approval_id": approval_id,
-                    "tools": [d.tool.value for d in approval_needed],
-                }
+        # -------------------------
+        # APPROVAL GATE
+        # -------------------------
+        approval_needed = [
+            d for d in decisions
+            if d.outcome == PolicyOutcome.REQUIRE_APPROVAL
+        ]
+
+        if approval_needed:
+            approval_id = approval_repository.create_pending(
+                trace_id=trace_id,
+                workflow="incident_broadcast",
+                tool_name=", ".join(d.tool.value for d in approval_needed),
+                safe_user_request=safe_user_request,
+                plan=plan.model_dump(),
+                reason="One or more tools require approval",
+                requested_by=user_id,
+            )
+
+            log_event(
+                "workflow.awaiting_approval",
+                trace_id=trace_id,
+                approval_id=approval_id,
+                tools=[d.tool.value for d in approval_needed],
+            )
+
+            return {
+                "status": "approval_required",
+                "approval_id": approval_id,
+                "tools": [d.tool.value for d in approval_needed],
+            }
 
 
         log_event(
@@ -264,32 +262,6 @@ class Orchestrator:
             steps=len(plan.steps),
             plan=plan.model_dump()
         )
-
-        # -------------------------
-        # APPROVAL GATE
-        # -------------------------
-        if plan_requires_approval(plan):
-            approval_id = approval_repository.create_pending(
-                trace_id=trace_id,
-                workflow="incident_broadcast",
-                safe_user_request=safe_user_request,
-                plan=plan.model_dump(),
-                requested_by=user_id,
-            )
-
-            log_event(
-                "workflow.awaiting_approval",
-                trace_id=trace_id,
-                approval_id=approval_id,
-                steps=len(plan.steps),
-            )
-
-            return {
-                "trace_id": trace_id,
-                "status": ApprovalStatus.PENDING.value,
-                "approval_id": approval_id,
-                "plan": plan.model_dump(),
-            }
 
         # -------------------------
         # READINESS CHECK
@@ -316,7 +288,7 @@ class Orchestrator:
         exec_span.attributes['step_count'] = len(plan.steps)
 
         try:
-            records = await self._execute_plan_dag(
+            records = await self._plan_executor.execute(
                 trace_id=trace_id,
                 steps=plan.steps,
                 policy=policy
@@ -328,13 +300,15 @@ class Orchestrator:
         # -------------------------
         # 3) SUMMARIZE (LLM -> IncidentSummary JSON)
         # -------------------------
-        return await self._summarize_execution(
+        result = await self._summarizer.summarize(
             trace_id=trace_id,
             records=records,
             safe_user_request=safe_user_request,
             plan=plan,
             user_id=user_id,
         )
+
+        return result
 
 
     async def resume_approved_workflow(
@@ -378,14 +352,16 @@ class Orchestrator:
             }
 
         # Resume exactly where we paused
-        records = await self._execute_plan_dag(
+        records = await self._plan_executor.execute(
             trace_id=approval.trace_id,
             steps=plan.steps,
             policy=build_policy_for_workflow("incident_broadcast"),
         )
 
-        # Continue to summary phase (reuse existing logic)
-        return await self._summarize_execution(
+        # -------------------------
+        # 3) SUMMARIZE (LLM -> IncidentSummary JSON)
+        # -------------------------
+        result = await self._summarizer.summarize(
             trace_id=approval.trace_id,
             records=records,
             safe_user_request=approval.safe_user_request,
@@ -393,156 +369,9 @@ class Orchestrator:
             user_id=approval.requested_by,
         )
 
-    async def _execute_plan_dag(
-            self,
-            *,
-            trace_id: str,
-            steps: list[PlannedToolCall],
-            policy: Any,
-    ) -> list[ExecutionRecord]:
-        """Execute planned steps with parallel groups."""
-        # Group steps by parallel_group; None group runs sequentially
-        sequential: list[PlannedToolCall] = [s for s in steps if not s.parallel_group]
-        grouped: dict[str, list[PlannedToolCall]] = {}
-        for s in steps:
-            if s.parallel_group:
-                grouped.setdefault(s.parallel_group, []).append(s)
+        return result
 
-        records: list[ExecutionRecord] = []
 
-        # First run all parallel groups (each group in parallel within itself; groups sequential)
-        for group_id, group_steps in grouped.items():
-            log_event('dag.group.start', trace_id=trace_id, group=group_id, size=len(group_steps))
-
-            async def _run_one(step: PlannedToolCall) -> ExecutionRecord:
-                policy.assert_tool_allowed(step.name)
-                # Minimal sanitization for outgoing content
-                args = dict(step.arguments)
-                if step.name == ToolName.SEND_SLACK_MESSAGE and 'text' in args:
-                    args['text'] = sanitize_message(str(args['text']))
-                if step.name == ToolName.SEND_EMAIL:
-                    if 'subject' in args:
-                        args['subject'] = sanitize_message(str(args['subject']))
-                    if 'body' in args:
-                        args['body'] = sanitize_message(str(args['body']))
-
-                tool_call_dict = {'name': step.name.value, 'arguments': args}
-                tool_span = Span(name=f'tool.{step.name.value}', trace_id=trace_id)
-                try:
-                    result = await self._harness.run_tool_call(tool_call_dict)
-                    ok = bool(result.get('ok', False))
-                    return ExecutionRecord(
-                        name=step.name,
-                        ok=ok,
-                        result=result,
-                        parallel_group=step.parallel_group,
-                    )
-                except ToolExecutionError as exc:
-                    return ExecutionRecord(
-                        name=step.name,
-                        ok=False,
-                        result={'ok': False, 'error': str(exc)},
-                        parallel_group=step.parallel_group,
-                    )
-                finally:
-                    tool_span.end()
-                    log_event('span.end', trace_id=trace_id, span=tool_span)
-
-            group_records = await _gather_preserve_order([_run_one(s) for s in group_steps])
-            records.extend(group_records)
-            log_event('dag.group.end', trace_id=trace_id, group=group_id, ok=all(r.ok for r in group_records))
-
-        # Then run sequential steps
-        for step in sequential:
-            log_event('dag.step.start', trace_id=trace_id, tool=step.name.value)
-            policy.assert_tool_allowed(step.name)
-
-            tool_call_dict = to_toolcall_dict(step)
-            tool_span = Span(name=f'tool.{step.name.value}', trace_id=trace_id)
-            try:
-                result = await self._harness.run_tool_call(tool_call_dict)
-                ok = bool(result.get('ok', False))
-                records.append(
-                    ExecutionRecord(name=step.name, ok=ok, result=result, parallel_group=None)
-                )
-            except ToolExecutionError as exc:
-                records.append(
-                    ExecutionRecord(
-                        name=step.name,
-                        ok=False,
-                        result={'ok': False, 'error': str(exc)},
-                        parallel_group=None,
-                    )
-                )
-            finally:
-                tool_span.end()
-                log_event('span.end', trace_id=trace_id, span=tool_span)
-
-        return records
-
-    async def _summarize_execution(
-            self,
-            *,
-            trace_id: str,
-            summary_version: str = 'v1',
-            records: list[ExecutionRecord],
-            safe_user_request: str,
-            plan: IncidentPlan,
-            user_id: str | None = None,
-    ):
-        summary_span = Span(name='llm.summarize', trace_id=trace_id)
-        summary_template = load_prompt('incident_summary', summary_version)
-
-        tool_outcomes_json = json.dumps([r.model_dump() for r in records], ensure_ascii=False)
-        summary_prompt = self._renderer.render(
-            summary_template,
-            {'user_request': safe_user_request, 'tool_outcomes_json': tool_outcomes_json},
-        )
-
-        try:
-            # Structured output schema for summary
-            summary_schema = _load_json_schema(f'{BASE_DIR}/prompts/incident_summary/{summary_version}/schema.json')
-            llm_summary_resp = await self._llm.generate(
-                LLMRequest(
-                    prompt=summary_prompt,
-                    metadata={
-                        'trace_id': trace_id,
-                        'module': 'incident_summary',
-                        'version': summary_version
-                    },
-                    safety_identifier=user_id,
-                    json_schema=summary_schema,
-                )
-            )
-        finally:
-            summary_span.end()
-            log_event(
-                'span.end',
-                trace_id=trace_id,
-                span=summary_span,
-                usage=getattr(llm_summary_resp, 'usage', None).__dict__ if 'llm_summary_resp' in locals() else None,
-            )
-
-        try:
-            summary_obj = json.loads(llm_summary_resp.output_text.strip())
-            summary = IncidentSummary.model_validate(summary_obj)
-        except (json.JSONDecodeError, ValidationError) as exc:
-            log_event(
-                'workflow.summary.invalid',
-                trace_id=trace_id,
-                error=str(exc),
-                raw_output=llm_summary_resp.output_text,
-            )
-            raise OrchestrationError(f'Summary produced invalid JSON: {exc}') from exc
-
-        log_event('workflow.end', trace_id=trace_id, ok=True)
-
-        return {
-            'trace_id': trace_id,
-            'plan': plan.model_dump(),
-            'tool_execution_records': [r.model_dump() for r in records],
-            'summary': summary.model_dump(),
-        }
 
 
 
@@ -551,9 +380,7 @@ class Orchestrator:
 # Helper functions
 # ------------------------------
 
-def _load_json_schema(path: str) -> dict[str, Any]:
-    p = Path(path)
-    return json.loads(p.read_text(encoding='utf-8'))
+
 
 def _parse_json_object(text: str) -> dict[str, Any]:
     """Parse a single JSON object from model output.

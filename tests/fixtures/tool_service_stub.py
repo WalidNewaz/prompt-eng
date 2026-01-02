@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------------
 # Shared stub transport for tool HTTP calls
 # ------------------------------------------------------------------------------
-from httpx import Response, Request, MockTransport
+from httpx import Response, Request
 import json
 
 def tool_service_stub(request: Request) -> Response:

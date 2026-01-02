@@ -4,4 +4,5 @@
 REQUIRED_FIELDS = {
     "send_slack_message": ["channel", "text"],
     "send_email": ["to", "subject", "body"],
+    "request_missing_info": ["test_field"],
 }

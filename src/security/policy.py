@@ -49,6 +49,21 @@ class SecurityPolicy:
         return True
 
     def evaluate_tool(self, tool: ToolName) -> PolicyDecision:
+        """
+        Evaluates whether a tool is permitted for execution based on current security policies.
+
+        The evaluation follows a hierarchical check:
+        1. Direct denial if the tool is not in the allowed list.
+        2. Requirement for human approval if the tool is flagged as sensitive.
+        3. Default allowance if neither condition above is met.
+
+        Args:
+            tool: The specific ToolName enum instance to be evaluated.
+
+        Returns:
+            A PolicyDecision object containing the outcome (ALLOW, DENY, or
+            REQUIRE_APPROVAL) and the justification for that decision.
+        """
         if tool not in self.allowed_tools:
             return PolicyDecision(
                 outcome=PolicyOutcome.DENY,
