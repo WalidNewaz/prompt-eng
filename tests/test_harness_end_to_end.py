@@ -101,17 +101,6 @@ async def test_orchestrator_routes_and_executes_tool_with_mock_llm() -> None:
             }
         )
     )
-    fake_tool_call = json.dumps(
-            {
-                "name": "send_slack_message",
-                "arguments": {
-                    "channel": "#alerts",
-                    "text": "Build finished.",
-                    "urgency": "normal",
-                    "message_id": "mock_message_id",
-                },
-            }
-        )
     fake_plan = IncidentPlan(
         intent="incident_broadcast",
         steps=[{
