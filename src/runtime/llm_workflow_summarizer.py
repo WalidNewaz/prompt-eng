@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from src.llm.base import LLMClient, LLMRequest
 from src.observability.tracing import Span, log_event
 from src.prompts.loader import load_prompt
-from .renderer import PromptRenderer
+from .prompt_renderer import PromptRenderer
 from .workflows import (
     ExecutionRecord,
     IncidentPlan,

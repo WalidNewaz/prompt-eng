@@ -10,6 +10,12 @@ ApprovalSortFieldLiteral = Literal["requested_at", "status", "workflow"]
 ApprovalStatusLiteral = Literal["PENDING", "APPROVED", "REJECTED"]
 
 @dataclass(frozen=True)
+class ApprovalGateResult:
+    proceed: bool
+    response: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
 class ApprovalFilters:
     status: Optional[ApprovalStatusLiteral] = None
     requested_by: Optional[str] = None

@@ -9,10 +9,9 @@ from src.runtime.harness import PromptToolHarness
 from src.runtime.orchestrator import Orchestrator
 from src.tools.http_tool import HttpToolExecutor
 
+# Fixtures
 from tests.fixtures.mock_llm_client import MockLLMClient
 from tests.fixtures.tool_service_stub import tool_service_stub
-
-# Fixtures
 from tests.fixtures.mock_approval_repo import mock_approval_repo
 from tests.fixtures.mock_plan_executor import mock_plan_executor
 from tests.fixtures.mock_summarizer import mock_summarizer

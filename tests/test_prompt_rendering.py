@@ -1,4 +1,4 @@
-from src.runtime.renderer import PromptRenderer
+from src.runtime.prompt_renderer import PromptRenderer
 import pytest
 
 

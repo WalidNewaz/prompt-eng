@@ -2,7 +2,6 @@
 # TYPED EXCEPTIONS
 # ---------------------------------
 
-
 class LLMParseError(Exception):
     pass
 
