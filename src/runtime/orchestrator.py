@@ -105,23 +105,42 @@ class Orchestrator:
         Returns:
             Tool result payload from the internal tool service.
         """
+        trace_id = new_trace_id()
+        plan_span = Span(name='llm.plan', trace_id=trace_id)
+        safe_user_request = sanitize_user_text(user_request)
+        log_event('workflow.start', trace_id=trace_id, workflow='notification')
+
+
         meta = metadata or {}
-        template = load_prompt('notification', prompt_version)
-        rendered = self._prompt_renderer.render(template, {'user_request': user_request})
+        template = self._prompt_store.get_prompt(
+            workflow='notification',
+            module="notification",
+            version=prompt_version,
+        )
+        schema = self._prompt_store.get_schema(
+            workflow='notification',
+            module="notification",
+            version=prompt_version,
+        )
+        prompt = self._prompt_renderer.render(
+            template,
+            {"user_request": user_request},
+        )
 
         last_error: Exception | None = None
-        current_prompt = rendered
+        # current_prompt = rendered
 
         for attempt in range(self._max_retries + 1):
             llm_resp = await self._llm.generate(
                 LLMRequest(
-                    prompt=current_prompt,
+                    prompt=prompt,
                     metadata={
                         **meta,
                         'prompt_module': 'notification',
                         'prompt_version': prompt_version,
                         'attempt': attempt,
                     },
+                    json_schema=schema,
                 )
             )
 
@@ -135,7 +154,7 @@ class Orchestrator:
                 if attempt >= self._max_retries:
                     break
                 current_prompt = build_repair_prompt(
-                    original_prompt=rendered,
+                    original_prompt=prompt,
                     invalid_output_text=llm_resp.output_text,
                     error_message=str(exc),
                 )
@@ -145,7 +164,7 @@ class Orchestrator:
                 if attempt >= self._max_retries:
                     break
                 current_prompt = build_repair_prompt(
-                    original_prompt=rendered,
+                    original_prompt=prompt,
                     invalid_output_text=llm_resp.output_text,
                     error_message=str(exc),
                 )
