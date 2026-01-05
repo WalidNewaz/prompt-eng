@@ -5,10 +5,8 @@ import pytest
 import httpx
 from httpx import MockTransport
 
-from src.core.types import WorkflowDefinition
 from src.runtime.harness import PromptToolHarness, ToolExecutionError
 from src.runtime.orchestrator import Orchestrator
-# from src.security.policy import SecurityPolicy
 from src.tools.http_tool import HttpToolExecutor
 from src.schemas import ToolName
 
@@ -126,7 +124,7 @@ async def test_orchestrator_routes_and_executes_tool_with_mock_llm() -> None:
             llm=llm,
             harness=harness,
             workflow={
-                "name": "incident_broadcast"
+                "name": "notification"
             },
             policy_provider=MockPolicyProvider(),
             prompt_store=MockPromptStore(),

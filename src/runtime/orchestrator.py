@@ -1,4 +1,5 @@
-"""End-to-end orchestration: prompt selection -> render -> LLM -> validate -> tool execute -> repair.
+"""End-to-end orchestration:
+    prompt selection -> render prompt -> LLM Plan -> validate -> Approve -> tool execute -> repair.
 
 This is the "application brain". It is responsible for:
 - choosing prompt module/version
@@ -25,7 +26,6 @@ from src.core.errors import LLMParseError, OrchestrationError
 from src.core.types import WorkflowDefinition
 from src.llm.base import LLMClient, LLMRequest
 from src.observability.tracing import Span, log_event, new_trace_id
-from src.prompts.loader import load_prompt
 from src.runtime.harness import PromptToolHarness, ToolExecutionError
 from src.runtime.prompt_renderer import PromptRenderer
 from src.runtime.workflows import IncidentPlan
@@ -213,7 +213,6 @@ class Orchestrator:
                 - summarizer output invalid
         """
         trace_id = new_trace_id()
-        # policy = build_policy_for_workflow('incident_broadcast')
         policy = self._policy_provider.for_workflow(workflow='incident_broadcast', user_id=user_id)
 
         safe_user_request = sanitize_user_text(user_request)
@@ -222,62 +221,13 @@ class Orchestrator:
         # -------------------------
         # PLAN (LLM -> IncidentPlan JSON)
         # -------------------------
-        plan = self._plan_generator.generate(
+        plan = await self._plan_generator.generate(
             trace_id=trace_id,
             workflow='incident_broadcast',
             user_request=safe_user_request,
             version=tool_plan_version,
             user_id=user_id,
         )
-        # plan_span = Span(name='llm.plan', trace_id=trace_id)
-        # plan_template = load_prompt('incident_plan', tool_plan_version)
-        # plan_prompt = self._prompt_renderer.render(plan_template, {'user_request': safe_user_request})
-        #
-        # # Structured output schema for planner
-        # plan_schema = load_json_schema(f'{BASE_DIR}/prompts/incident_plan/{tool_plan_version}/schema.json')
-        #
-        # try:
-        #     llm_plan_resp = await self._llm.generate(
-        #         LLMRequest(
-        #             prompt=plan_prompt,
-        #             metadata={
-        #                 'trace_id': trace_id,
-        #                 'module': 'incident_plan',
-        #                 'version': tool_plan_version,
-        #                 'workflow': 'incident_broadcast',
-        #                 'phase': 'planning',
-        #             },
-        #             safety_identifier=user_id,
-        #             json_schema = plan_schema,
-        #         ),
-        #     )
-        # finally:
-        #     plan_span.end()
-        #     usage = (
-        #         normalize_usage(getattr(llm_plan_resp, "usage", None))
-        #         if "llm_plan_resp" in locals()
-        #         else None
-        #     )
-        #     log_event(
-        #         'span.end',
-        #         trace_id=trace_id,
-        #         span=plan_span,
-        #         usage=usage,
-        #     )
-        #
-        # # Parse + validate plan (Pydantic)
-        # try:
-        #     plan_obj = json.loads(llm_plan_resp.output_text)
-        #     plan = normalize_plan(plan_obj)
-        #     plan = IncidentPlan.model_validate(plan_obj)
-        # except (json.JSONDecodeError, ValidationError) as exc:
-        #     log_event(
-        #         'workflow.plan.invalid',
-        #         trace_id=trace_id,
-        #         error=str(exc),
-        #         raw_output=llm_plan_resp.output_text,
-        #     )
-        #     raise OrchestrationError(f'Planner produced invalid plan: {exc}') from exc
 
         # -------------------------
         # POLICY CHECK
@@ -307,36 +257,6 @@ class Orchestrator:
 
         if not approval.proceed:
             return approval.response
-
-        # approval_needed = [
-        #     d for d in decisions
-        #     if d.outcome == PolicyOutcome.REQUIRE_APPROVAL
-        # ]
-        #
-        # if approval_needed:
-        #     approval_id = approval_repository.create_pending(
-        #         trace_id=trace_id,
-        #         workflow="incident_broadcast",
-        #         tool_name=", ".join(d.tool.value for d in approval_needed),
-        #         safe_user_request=safe_user_request,
-        #         plan=plan.model_dump(),
-        #         reason="One or more tools require approval",
-        #         requested_by=user_id,
-        #     )
-        #
-        #     log_event(
-        #         "workflow.awaiting_approval",
-        #         trace_id=trace_id,
-        #         approval_id=approval_id,
-        #         tools=[d.tool.value for d in approval_needed],
-        #     )
-        #
-        #     return {
-        #         "status": "approval_required",
-        #         "approval_id": approval_id,
-        #         "tools": [d.tool.value for d in approval_needed],
-        #     }
-
 
         log_event(
              'workflow.plan.ok',
@@ -433,12 +353,21 @@ class Orchestrator:
                 "reason": readiness.reason,
             }
 
-        # Resume exactly where we paused
-        records = await self._plan_executor.execute(
-            trace_id=approval.trace_id,
-            steps=plan.steps,
-            policy=build_policy_for_workflow("incident_broadcast"),
-        )
+        # -------------------------
+        # EXECUTE (DAG: parallel groups + join)
+        # -------------------------
+        exec_span = Span(name='tools.execute_dag', trace_id=approval.trace_id)
+        exec_span.attributes['step_count'] = len(plan.steps)
+
+        try:
+            records = await self._plan_executor.execute(
+                trace_id=approval.trace_id,
+                steps=plan.steps,
+                policy=build_policy_for_workflow("incident_broadcast"),
+            )
+        finally:
+            exec_span.end()
+            log_event('span.end', trace_id=approval.trace_id, span=exec_span)
 
         # -------------------------
         # 3) SUMMARIZE (LLM -> IncidentSummary JSON)
@@ -480,47 +409,9 @@ def _parse_json_object(text: str) -> dict[str, Any]:
         raise ValueError('Model output must be a single JSON object.')
     return obj
 
-async def _gather_preserve_order(coroutines: list[Any]) -> list[Any]:
-    """Gather coroutines concurrently while preserving input order."""
-    # asyncio.gather preserves order by default, but keep a wrapper for clarity.
-    import asyncio
 
-    return await asyncio.gather(*coroutines)
 
-def extract_json(text: str) -> dict:
-    """
-    Extract JSON object from LLM output that may be wrapped in Markdown fences.
-    """
-    # Remove ```json or ``` and trailing ```
-    cleaned = re.sub(r"^```(?:json)?\s*", "", text.strip(), flags=re.IGNORECASE)
-    cleaned = re.sub(r"\s*```$", "", cleaned)
-    return json.loads(cleaned)
 
-def parse_llm_json(text: str) -> dict:
-    try:
-        return extract_json(text)
-    except json.JSONDecodeError as e:
-        raise LLMParseError(
-            f"Failed to parse JSON from LLM output:\n{text}"
-        ) from e
 
-def normalize_plan(raw: dict[str, Any]) -> IncidentPlan:
-    if "plan" in raw:
-        steps = []
-        for group in raw["plan"]:
-            group_id = group.get("parallel_group")
-            for s in group.get("steps", []):
-                steps.append(
-                    {
-                        "name": s["tool"],
-                        "arguments": s["parameters"],
-                        "parallel_group": group_id,
-                    }
-                )
-        return IncidentPlan(
-            intent="incident_broadcast",
-            steps=steps,
-        )
 
-    # already normalized
-    return IncidentPlan.model_validate(raw)
+
