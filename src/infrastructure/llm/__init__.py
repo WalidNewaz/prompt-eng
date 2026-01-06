@@ -9,3 +9,11 @@ Rules:
 
 Those belong in orchestration layers.
 """
+from .entities import (
+    LLMClient,
+    LLMRequest,
+    LLMResponse,
+    LLMUsage
+)
+from .fake_llm_client import FakeLLMClient
+from .openai_responses import OpenAIResponsesConfig, OpenAIResponsesLLMClient

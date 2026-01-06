@@ -11,11 +11,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from src.llm.base import LLMClient, LLMRequest, LLMResponse
+from .entities import LLMClient, LLMRequest, LLMResponse
 
 
-class MockLLMClient(LLMClient):
-    """A mock model that returns pre-canned outputs.
+class FakeLLMClient(LLMClient):
+    """A fake model that returns pre-canned outputs.
 
     Provide either:
     - a static dict payload (will be JSON-serialized), or

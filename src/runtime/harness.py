@@ -19,7 +19,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from src.schemas import ToolCall, ToolName, validate_tool_args, validate_tool_call_payload, validate_tool_result
+from src.tools.schemas import ToolCall, ToolName, validate_tool_args, validate_tool_call_payload, validate_tool_result
 from src.tools.base import ToolExecutor
 from src.tools.http_tool import HttpToolExecutor
 

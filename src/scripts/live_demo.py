@@ -4,12 +4,9 @@ import argparse
 import asyncio
 import json
 
-import httpx
-
-from src.llm.openai_responses import OpenAIResponsesLLMClient
+from src.infrastructure.llm import OpenAIResponsesLLMClient
 from src.runtime.harness import PromptToolHarness
 from src.runtime.orchestrator import Orchestrator
-from src.api.fastapi_tool_server import app as tool_app
 from src.tools.http_tool import HttpToolExecutor
 
 

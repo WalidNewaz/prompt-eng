@@ -4,9 +4,9 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from src.llm.base import LLMClient, LLMRequest
-from src.observability.tracing import Span, log_event
-from src.prompts.loader import load_prompt
+from src.infrastructure.llm import LLMClient, LLMRequest
+from src.core.observability.tracing import Span, log_event
+from src.ai.prompts.loader import load_prompt
 from src.runtime.prompt_renderer import PromptRenderer
 from src.runtime.workflows import (
     ExecutionRecord,

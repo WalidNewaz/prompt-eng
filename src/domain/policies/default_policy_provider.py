@@ -1,7 +1,7 @@
 from typing import Any
 
-from src.schemas import ToolName
-from src.security.policy import SecurityPolicy
+from src.tools.schemas import ToolName
+from src.domain.policies import SecurityPolicy
 
 class DefaultPolicyProvider:
     """

@@ -23,17 +23,18 @@ from typing import Any
 
 from src.core.errors import OrchestrationError
 from src.core.types import WorkflowDefinition
-from src.llm.base import LLMClient, LLMRequest
-from src.observability.tracing import Span, log_event, new_trace_id
-from src.schemas import validate_tool_call_payload
-from src.security.policy import (
+from src.infrastructure.llm import LLMClient, LLMRequest
+from src.core.observability import Span, log_event, new_trace_id
+from src.tools.schemas import validate_tool_call_payload
+from src.domain.policies import (
     build_policy_for_workflow,
     sanitize_user_text,
     evaluate_plan,
+    PolicyOutcome,
+    PolicyProvider,
+    DefaultPolicyProvider,
 )
-from src.security.policy_decision import PolicyOutcome
 from src.domain.readiness import evaluate_readiness, ReadinessOutcome
-from src.domain.policies import PolicyProvider, DefaultPolicyProvider
 from src.domain.plans import PlanGenerator, LLMPlanGenerator
 from src.domain.prompt_store import PromptStore, FilesystemPromptStore
 from src.domain.approval import (

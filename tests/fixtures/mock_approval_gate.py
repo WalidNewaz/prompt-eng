@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 from src.runtime.workflows import IncidentPlan
-from src.security.policy import SecurityPolicy
+from src.domain.policies import SecurityPolicy
 from src.domain.approval.entities import ApprovalGateResult
 
 def conditional_evaluate(

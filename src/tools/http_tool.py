@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from src.schemas import ToolName
+from src.tools.schemas import ToolName
 from src.tools.base import ToolExecutor
 
 

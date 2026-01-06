@@ -8,7 +8,7 @@ from httpx import MockTransport
 from src.runtime.harness import PromptToolHarness, ToolExecutionError
 from src.runtime.orchestrator import Orchestrator
 from src.tools.http_tool import HttpToolExecutor
-from src.schemas import ToolName
+from src.tools.schemas import ToolName
 
 from tests.fixtures.mock_llm_client import MockLLMClient
 from tests.fixtures.tool_service_stub import tool_service_stub

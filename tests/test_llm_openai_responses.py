@@ -3,9 +3,11 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from src.llm.base import LLMRequest
-from src.llm.openai_responses import OpenAIResponsesConfig, OpenAIResponsesLLMClient
-
+from src.infrastructure.llm import (
+    LLMRequest,
+    OpenAIResponsesConfig,
+    OpenAIResponsesLLMClient
+)
 
 @pytest.mark.asyncio
 async def test_openai_responses_adapter_extracts_output_text() -> None:

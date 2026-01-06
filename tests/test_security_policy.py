@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.schemas import ToolName
-from src.security.policy import SecurityPolicy, sanitize_user_text, PolicyViolation
+from src.tools.schemas import ToolName
+from src.domain.policies import SecurityPolicy, sanitize_user_text, PolicyViolation
 
 
 def test_policy_rejects_unallowed_tool() -> None:

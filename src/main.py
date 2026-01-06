@@ -14,10 +14,7 @@ Important:
 
 from __future__ import annotations
 
-import uuid
-
 from fastapi import FastAPI
-from pydantic import BaseModel, EmailStr, Field
 
 from src.api.routes import register_routes
 

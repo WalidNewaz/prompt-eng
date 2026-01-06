@@ -1,9 +1,7 @@
-# app/security/policy_decision.py
-
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
-from src.schemas import ToolName
+from src.tools.schemas import ToolName
 
 
 class PolicyOutcome(str, Enum):

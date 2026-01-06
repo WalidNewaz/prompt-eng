@@ -11,15 +11,14 @@ Responses API reference: request fields include `input`, `text`, and optional `s
 
 from __future__ import annotations
 
-import json
 import os
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
-from src.llm.base import LLMClient, LLMRequest, LLMResponse, LLMUsage
-from src.config import Settings
+from .entities import LLMClient, LLMRequest, LLMResponse, LLMUsage
+from src.core.config import Settings
 
 
 @dataclass(frozen=True)

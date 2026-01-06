@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from src.llm.base import LLMRequest
-from src.llm.mock import MockLLMClient
+from src.infrastructure.llm import LLMRequest
+from src.infrastructure.llm import MockLLMClient
 
 
 @pytest.mark.asyncio

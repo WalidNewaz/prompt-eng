@@ -2,8 +2,7 @@ from typing import Any
 
 from src.runtime.workflows import IncidentPlan
 from src.domain.approval.repository import ApprovalRequestRepositoryProtocol
-from src.security.policy import evaluate_plan
-from src.security.policy_decision import PolicyOutcome
+from src.domain.policies import evaluate_plan, PolicyOutcome
 from src.core.errors import OrchestrationError
 
 from .entities import ApprovalGateResult

@@ -1,11 +1,11 @@
 from typing import Iterable, Protocol, Any
 
-from src.observability.tracing import Span, log_event
+from src.core.observability import Span, log_event
 
 from .workflows import ExecutionRecord, PlannedToolCall
 from .harness import ToolExecutionError
-from src.schemas import ToolName
-from src.security.policy import sanitize_message
+from src.tools.schemas import ToolName
+from src.domain.policies import sanitize_message
 
 class ToolHarness(Protocol):
     async def run_tool_call(self, tool_call: dict) -> dict: ...

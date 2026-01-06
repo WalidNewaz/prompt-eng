@@ -3,8 +3,8 @@
 # --------------------------------
 from functools import lru_cache
 
-from src.config import settings
-from src.llm.openai_responses import OpenAIResponsesLLMClient
+from src.core.config import settings
+from src.infrastructure.llm import OpenAIResponsesLLMClient
 from src.runtime.harness import PromptToolHarness
 from src.runtime.orchestrator import Orchestrator
 from src.tools.http_tool import HttpToolExecutor

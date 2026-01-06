@@ -13,8 +13,8 @@ import re
 from dataclasses import dataclass
 from typing import Iterable
 
-from src.schemas import ToolName
-from src.security.policy_decision import PolicyDecision, PolicyOutcome
+from src.tools.schemas import ToolName
+from .policy_decision import PolicyDecision, PolicyOutcome
 
 _INJECTION_PATTERNS = [
     r'(?i)\bignore\b.*\binstructions\b',
@@ -138,14 +138,6 @@ def build_policy_for_workflow(workflow: str) -> SecurityPolicy:
         approval_required_tools=set(),
     )
 
-
-def assert_all_tools_allowed(
-        policy: SecurityPolicy,
-        tools: Iterable[ToolName],
-        workflow: str
-) -> None:
-    for t in tools:
-        policy.assert_tool_allowed(t, workflow=workflow)
 
 def evaluate_plan(
     policy: SecurityPolicy,

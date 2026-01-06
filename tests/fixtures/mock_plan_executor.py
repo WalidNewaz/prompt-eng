@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, AsyncMock
 from src.runtime.workflows import (
     ExecutionRecord,
 )
-from src.schemas import (
+from src.tools.schemas import (
     ToolName,
 )
 

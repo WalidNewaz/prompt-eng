@@ -1,4 +1,4 @@
-from src.prompts.loader import load_prompt, PromptNotFoundError
+from src.ai.prompts.loader import load_prompt, PromptNotFoundError
 import pytest
 
 

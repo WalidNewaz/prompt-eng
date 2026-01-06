@@ -2,7 +2,7 @@
 A canonical tool registry
 """
 
-from src.schemas import ToolName
+from src.tools.schemas import ToolName
 
 TOOL_REGISTRY = {
     ToolName.SEND_SLACK_MESSAGE.value: {

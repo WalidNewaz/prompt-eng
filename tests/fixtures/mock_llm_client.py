@@ -2,7 +2,7 @@
 # Minimal, concrete MockLLMClient
 # ------------------------------------------------------------------------------
 
-from src.llm.base import LLMRequest, LLMResponse
+from src.infrastructure.llm import LLMRequest, LLMResponse
 
 class MockLLMClient:
     """
