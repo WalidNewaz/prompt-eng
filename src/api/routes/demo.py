@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from src.api.core.container import get_container
+from src.api.container import get_container
 from src.infrastructure.db.connection import get_db
 from src.domain.approval.repository import ApprovalRequestRepository
 
@@ -19,7 +19,11 @@ def get_approval_repo(
 ) -> ApprovalRequestRepository:
     return ApprovalRequestRepository(db)
 
-@router.post("/")
+@router.post(
+    "/",
+    summary="Report incident",
+    description="Execute the Incident Broadcast workflow."
+)
 async def run_live_demo(
     payload: LiveDemoRequest,
     approval_repository: ApprovalRequestRepository = Depends(get_approval_repo),

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 
-from src.api.core.container import get_container
+from src.api.container import get_container
 from src.infrastructure.db.connection import get_db
 from src.domain.approval.repository import ApprovalRequestRepository
 from src.domain.approval.models import ApprovalStatus
