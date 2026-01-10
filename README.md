@@ -29,7 +29,11 @@ poetry run python -c "from app.runtime.harness import demo; demo('http://127.0.0
 ```commandline
 ruff check .
 black --check .
-pytest
+poetry run pytest
+# Coverage
+poetry run coverage run
+poetry run coverage report
+poetry run coverage html
 ```
 
 ## Run the live API demo (Responses API)

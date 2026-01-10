@@ -120,18 +120,18 @@ class Orchestrator:
             module="notification",
             version=prompt_version,
         )
-        prompt = self._prompt_renderer.render(
+        original_prompt = self._prompt_renderer.render(
             template,
             {"user_request": user_request},
         )
 
         last_error: Exception | None = None
-        # current_prompt = rendered
+        current_prompt = original_prompt
 
         for attempt in range(self._max_retries + 1):
             llm_resp = await self._llm.generate(
                 LLMRequest(
-                    prompt=prompt,
+                    prompt=current_prompt,
                     metadata={
                         **meta,
                         'prompt_module': 'notification',
@@ -152,7 +152,9 @@ class Orchestrator:
                 if attempt >= self._max_retries:
                     break
                 current_prompt = build_repair_prompt(
-                    original_prompt=prompt,
+                    original_prompt=original_prompt,
+                    attempt=attempt,
+                    max_retries=self._max_retries,
                     invalid_output_text=llm_resp.output_text,
                     error_message=str(exc),
                 )
@@ -162,7 +164,9 @@ class Orchestrator:
                 if attempt >= self._max_retries:
                     break
                 current_prompt = build_repair_prompt(
-                    original_prompt=prompt,
+                    original_prompt=original_prompt,
+                    attempt=attempt,
+                    max_retries=self._max_retries,
                     invalid_output_text=llm_resp.output_text,
                     error_message=str(exc),
                 )

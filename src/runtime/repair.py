@@ -9,18 +9,20 @@ The repair prompt should include:
 
 from __future__ import annotations
 
-from typing import Any
-
 
 def build_repair_prompt(
     original_prompt: str,
-    invalid_output: dict[str, Any],
+    invalid_output_text: str,
     error_message: str,
+    attempt: int,
+    max_retries: int,
 ) -> str:
     """Construct a repair prompt to fix invalid model output.
 
     Args:
         original_prompt: The original rendered prompt.
+        attempt: The number of attempts to repair the prompt.
+        max_retries: The maximum number of attempts to repair the prompt.
         invalid_output_text: The model's invalid output (raw text).
         error_message: Validation error details.
 
@@ -34,13 +36,17 @@ ERROR:
 {error_message}
 
 INVALID OUTPUT (RAW TEXT):
-{invalid_output}
+{invalid_output_text}
+
+ATTEMPTS:
+This is repair attempt #{attempt + 1} of {max_retries}.
 
 INSTRUCTIONS:
 - Return ONLY ONE valid JSON object with keys: "name" and "arguments"
 - Do not include any additional keys
 - Do not include prose
 - Choose "request_missing_info" if required fields are missing
+- Do NOT change the intent or tool choice unless required to fix the error.
 
 ORIGINAL PROMPT:
 {original_prompt}
