@@ -30,7 +30,9 @@ class ApprovalRequestRepositoryProtocol(Protocol):
             trace_id: str,
             workflow: str,
             safe_user_request: str,
+            tool_name: str,
             plan: dict[str, Any],
+            reason: str,
             requested_by: str,
     ) -> str:
         """Create a new pending approval"""
@@ -110,7 +112,9 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
             trace_id: str,
             workflow: str,
             safe_user_request: str,
+            tool_name: str,
             plan: dict[str, Any],
+            reason: str,
             requested_by: str,
     ) -> str:
         """Create a new pending approval"""
@@ -118,30 +122,36 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
                 INSERT INTO approval_requests (
                     trace_id,
                     workflow,
+                    tool_name,
                     safe_user_request,
                     plan,
+                    reason,
                     status,
-                    requested_by,
-                    requested_at
+                    requested_at,
+                    requested_by
                 ) VALUES (
                     :trace_id,
                     :workflow,
+                    :tool_name,
                     :safe_user_request,
                     :plan,
+                    :reason,
                     :status,
-                    :requested_by,
-                    :requested_at
+                    :requested_at,
+                    :requested_by
                 )
                 RETURNING *
                 """)
         params = {
             "trace_id": trace_id,
             "workflow": workflow,
+            "tool_name": tool_name,
             "safe_user_request": safe_user_request,
             "plan": json.dumps(plan, ensure_ascii=False),
+            "reason": reason,
             "status": 'PENDING',
-            "requested_by": requested_by,
             "requested_at": datetime.now(),
+            "requested_by": requested_by,
         }
         result = self.db.execute(query, params)
         new_row = result.fetchone()

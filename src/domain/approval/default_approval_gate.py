@@ -20,6 +20,7 @@ class DefaultApprovalGate:
         *,
         trace_id: str,
         workflow: str,
+        safe_user_request: str,
         plan: IncidentPlan,
         policy: Any,
         user_id: str | None,
@@ -42,9 +43,9 @@ class DefaultApprovalGate:
             trace_id=trace_id,
             workflow=workflow,
             tool_name=", ".join(d.tool.value for d in approval_needed),
-            safe_user_request=plan.safe_user_request if hasattr(plan, "safe_user_request") else None,
+            safe_user_request=safe_user_request,
             plan=plan.model_dump(),
-            reason="One or more tools require approval",
+            reason="One or more tools require approval.",
             requested_by=user_id,
         )
 

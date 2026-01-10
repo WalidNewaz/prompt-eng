@@ -40,7 +40,8 @@ from src.domain.prompt_store import PromptStore, FilesystemPromptStore
 from src.domain.approval import (
     ApprovalGate,
     DefaultApprovalGate,
-    ApprovalRequestRepositoryProtocol
+    ApprovalRequestRepositoryProtocol,
+    ApprovalRequestRepository,
 )
 from src.domain.summarizer import WorkflowSummarizer, LLMWorkflowSummarizer
 
@@ -51,7 +52,7 @@ from .repair import build_repair_prompt
 from .plan_executor import PlanExecutor
 
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[1] / 'ai/'
 
 
 class Orchestrator:
@@ -68,7 +69,6 @@ class Orchestrator:
         plan_generator: PlanGenerator | None = None,
         plan_executor: PlanExecutor | None = None,
         prompt_renderer: PromptRenderer | None = None,
-        approval_gate: ApprovalGate | None = None,
         summarizer: WorkflowSummarizer | None = None,
         max_retries: int = 1,
     ) -> None:
@@ -84,7 +84,6 @@ class Orchestrator:
             renderer=self._prompt_renderer,
         )
         self._plan_executor = plan_executor or PlanExecutor(harness=harness)
-        self._approval_gate = approval_gate or DefaultApprovalGate()
         self._summarizer = summarizer or LLMWorkflowSummarizer(
             llm=llm,
             renderer=self._prompt_renderer,
@@ -180,7 +179,8 @@ class Orchestrator:
             tool_plan_version: str = 'v1',
             summary_version: str = 'v1',
             user_id: str | None = None,
-            approval_repository: ApprovalRequestRepositoryProtocol | None = None,
+            # approval_repository: ApprovalRequestRepositoryProtocol | None = None,
+            approval_gate: ApprovalGate | None = None,
     ) -> dict[str, Any]:
         """
         Execute the Incident Broadcast workflow.
@@ -249,9 +249,10 @@ class Orchestrator:
         # -------------------------
         # APPROVAL GATE
         # -------------------------
-        approval = self._approval_gate.evaluate(
+        approval = approval_gate.evaluate(
             trace_id=trace_id,
             workflow='incident_broadcast',
+            safe_user_request=safe_user_request,
             plan=plan,
             policy=policy,
             user_id=user_id,

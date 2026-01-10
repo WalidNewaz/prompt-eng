@@ -9,6 +9,7 @@ class ApprovalGate(Protocol):
         *,
         trace_id: str,
         workflow: str,
+        safe_user_request: str,
         plan: IncidentPlan,
         policy: Any,
         user_id: str | None,
