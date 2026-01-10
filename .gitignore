@@ -20,6 +20,13 @@
 **/top_level.txt
 **/*.pkl
 
+# Python
+__pycache__
+.pytest_cache
+.coverage
+htmlcov/
+
+
 # Tests
 .coverage
 /htmlcov

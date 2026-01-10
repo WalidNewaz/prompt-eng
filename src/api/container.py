@@ -8,7 +8,7 @@ from src.infrastructure.llm import OpenAIResponsesLLMClient
 from src.runtime.harness import PromptToolHarness
 from src.runtime.orchestrator import Orchestrator
 from src.tools.http_tool import HttpToolExecutor
-
+from src.domain.policies import DefaultPolicyProvider
 
 class Container:
     def __init__(self):
@@ -22,6 +22,7 @@ class Container:
         self._orchestrator = Orchestrator(
             llm=self._llm,
             harness=self._harness,
+            workflow={ "name": "demo" }
             # approval_repository=get_approval_repo(),
         )
 

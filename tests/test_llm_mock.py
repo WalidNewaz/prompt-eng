@@ -5,7 +5,7 @@ import json
 import pytest
 
 from src.infrastructure.llm import LLMRequest
-from src.infrastructure.llm import MockLLMClient
+from src.infrastructure.llm import FakeLLMClient as MockLLMClient
 
 
 @pytest.mark.asyncio
