@@ -210,11 +210,14 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
             trace_id=row.get("trace_id"),
             workflow=row.get("workflow"),
             tool_name=row.get("tool_name"),
+            safe_user_request=row.get("safe_user_request"),
             plan=plan,
+            reason=row.get("reason"),
             status=row.get("status"),
             requested_at=parse_dt(row.get("requested_at")),
+            requested_by=row.get("requested_by"),
             decided_at=parse_dt(row.get("decided_at")),
-            # Add other fields as needed...
+            decided_by=row.get("decided_by"),
         )
 
     def get_all(
