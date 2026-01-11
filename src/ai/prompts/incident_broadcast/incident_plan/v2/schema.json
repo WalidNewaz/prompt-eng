@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "properties": {
+    "intent": { "type": "string", "enum": ["incident_broadcast"] },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["send_slack_message", "send_email", "request_missing_info"]
+          },
+          "arguments": { "type": "object", "additionalProperties": false },
+          "parallel_group": { "type": ["string", "null"] }
+        },
+        "required": ["name", "parallel_group"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["intent", "steps"],
+  "additionalProperties": false
+}

@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, ConfigDict
+from datetime import datetime
 
 from src.api.container import get_container
 from src.infrastructure.db.connection import get_db
@@ -10,7 +12,12 @@ from src.domain.approval.entities import (
     Pagination,
     Sorting
 )
-from src.api.schemas import ApprovalFilters, PaginatedResponse, PaginationMeta
+from src.api.schemas import (
+    ApprovalFilters,
+    PaginatedResponse,
+    PaginationMeta,
+    # ApprovalRequest
+)
 
 router = APIRouter(prefix="/approvals", tags=["Approvals"])
 
@@ -19,6 +26,22 @@ def get_approval_repo(
 ) -> ApprovalRequestRepository:
     return ApprovalRequestRepository(db)
 
+
+class ApprovalRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)  # Allows reading from dataclasses
+
+    id: int = None
+    trace_id: str = None
+    workflow: str = None
+    tool_name: str = None
+    safe_user_request: str = None
+    plan: dict = None
+    reason: str = None
+    status: str = None
+    requested_at: datetime | None = None
+    requested_by: str = None
+    decided_at: datetime | None = None
+    decided_by: str = None
 
 
 @router.get(

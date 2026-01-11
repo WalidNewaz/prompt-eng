@@ -1,6 +1,7 @@
 # ============================================================
 # Business/domain entities
 # ============================================================
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Optional, Literal
 from datetime import datetime
@@ -46,12 +47,12 @@ class PageMeta:
 
 @dataclass(frozen=True)
 class PageResult:
-    data: list["ApprovalRequest"]
+    data: list[ApprovalRequestEntity]
     meta: PageMeta
 
-@dataclass
+@dataclass(frozen=True)
 class ApprovalRequestEntity:
-    id: str = None
+    id: int = None
     trace_id: str = None
     workflow: str = None
     tool_name: str = None

@@ -178,9 +178,43 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
             plan = json.loads(row.plan),
             reason = row.reason,
             status = row.status,
-            requested_at = row.requested_at,
-            decided_at = row.decided_at,
+            requested_at = datetime.strptime(row.requested_at),
+            decided_at = datetime.strptime(row.decided_at),
             decided_by = row.decided_by,
+        )
+
+    @staticmethod
+    def map_row_to_model(row: dict[str, Any]) -> ApprovalRequest:
+        """
+        Manually maps a database row (dict) to the Pydantic model.
+        Handles JSON parsing and Datetime conversion explicitly.
+        """
+        # 1. Parse JSON safely
+        plan_raw = row.get("plan")
+        if isinstance(plan_raw, str):
+            try:
+                plan = json.loads(plan_raw)
+            except json.JSONDecodeError:
+                plan = {}
+        else:
+            plan = plan_raw or {}
+
+        # 2. Convert Datetime safely
+        def parse_dt(val):
+            if isinstance(val, str):
+                return datetime.fromisoformat(val.replace(" ", "T"))
+            return val
+
+        return ApprovalRequest(
+            id=row.get("id"),
+            trace_id=row.get("trace_id"),
+            workflow=row.get("workflow"),
+            tool_name=row.get("tool_name"),
+            plan=plan,
+            status=row.get("status"),
+            requested_at=parse_dt(row.get("requested_at")),
+            decided_at=parse_dt(row.get("decided_at")),
+            # Add other fields as needed...
         )
 
     def get_all(
@@ -249,7 +283,7 @@ class ApprovalRequestRepository(ApprovalRequestRepositoryProtocol):
         result = self.db.execute(data_query, params)
 
         records = [
-            ApprovalRequest(**row)
+            ApprovalRequestRepository.map_row_to_model(dict(row))
             for row in result.mappings()
         ]
 
