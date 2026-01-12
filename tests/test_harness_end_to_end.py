@@ -48,7 +48,6 @@ async def test_harness_validates_and_executes_send_email() -> None:
         result = await harness.run_tool_call(tool_call)
 
     # The harness is the source of truth for the final response shape
-    print(result)
     assert result["ok"] is True
     assert result["provider_message_id"].startswith("msg_")
     assert result["tool"] == "send_email"
@@ -131,7 +130,7 @@ async def test_orchestrator_routes_and_executes_tool_with_mock_llm() -> None:
             plan_generator=FakePlanGenerator(plan=fake_plan),
             plan_executor=mock_plan_executor,
             prompt_renderer=mock_prompt_renderer,
-            approval_gate=mock_approval_gate,
+            # approval_gate=mock_approval_gate,
             summarizer=mock_summarizer,
             max_retries=0
         )

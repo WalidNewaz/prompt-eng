@@ -1,7 +1,7 @@
 from typing import Any
 
 from src.runtime.workflows import IncidentPlan
-from src.domain.approval.repository import ApprovalRequestRepositoryProtocol
+from src.repository.approval_repository import ApprovalRequestRepositoryProtocol
 from src.domain.policies import evaluate_plan, PolicyOutcome
 from src.core.errors import OrchestrationError
 

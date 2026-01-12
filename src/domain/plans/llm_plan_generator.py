@@ -3,7 +3,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from src.core.observability import log_event, Span
-from src.infrastructure.llm import LLMClient, LLMRequest
+from src.domain.llm.llm_entities import LLMClient, LLMRequest
 from src.domain.prompt_store.prompt_store import PromptStore
 from src.runtime.prompt_renderer import PromptRenderer
 from src.runtime.workflows import IncidentPlan

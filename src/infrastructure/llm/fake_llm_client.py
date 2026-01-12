@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .entities import LLMClient, LLMRequest, LLMResponse
+from src.domain.llm.llm_entities import LLMClient, LLMRequest, LLMResponse
 
 
 class FakeLLMClient(LLMClient):

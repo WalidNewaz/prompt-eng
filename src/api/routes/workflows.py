@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from src.api.container import get_container
 from src.domain.approval import ApprovalGate, DefaultApprovalGate
 from src.infrastructure.db.connection import get_db
-from src.domain.approval.repository import ApprovalRequestRepository
+from src.repository.approval_repository import ApprovalRequestRepository
 
 router = APIRouter(prefix="/workflows", tags=["Workflows"])
 

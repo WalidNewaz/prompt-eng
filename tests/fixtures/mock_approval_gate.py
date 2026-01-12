@@ -8,6 +8,7 @@ def conditional_evaluate(
     *,
     trace_id: str,
     workflow: str,
+    safe_user_request: str,
     plan: IncidentPlan,
     policy: SecurityPolicy,
     user_id: str | None,

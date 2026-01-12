@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from src.infrastructure.llm import LLMRequest
+from src.domain.llm.llm_entities import LLMRequest
 from src.infrastructure.llm import FakeLLMClient as MockLLMClient
 
 

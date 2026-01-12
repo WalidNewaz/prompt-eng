@@ -71,7 +71,7 @@ async def test_orchestrator_routes_and_executes_tool_with_mock_llm() -> None:
             plan_generator=FakePlanGenerator(plan=fake_plan),
             plan_executor=mock_plan_executor,
             prompt_renderer=mock_prompt_renderer,
-            approval_gate=mock_approval_gate,
+            # approval_gate=mock_approval_gate,
             summarizer=mock_summarizer,
             max_retries=0
         )
@@ -132,7 +132,7 @@ async def test_orchestrator_run_incident_broadcast_require_approval() -> None:
             plan_generator=FakePlanGenerator(plan=fake_plan),
             plan_executor=mock_plan_executor,
             prompt_renderer=mock_prompt_renderer,
-            approval_gate=mock_approval_gate,
+            # approval_gate=mock_approval_gate,
             summarizer=mock_summarizer,
             max_retries=0
         )
@@ -146,7 +146,8 @@ async def test_orchestrator_run_incident_broadcast_require_approval() -> None:
         result = await orch.run_incident_broadcast(
             user_request=user_request,
             user_id=user_id,
-            approval_repository=mock_approval_repo,
+            # approval_repository=mock_approval_repo,
+            approval_gate=mock_approval_gate
         )
 
     # Assert
@@ -201,7 +202,8 @@ async def test_orchestrator_run_incident_broadcast_plan_not_ready() -> None:
         result = await orch.run_incident_broadcast(
             user_request=user_request,
             user_id=user_id,
-            approval_repository=mock_approval_repo,
+            # approval_repository=mock_approval_repo,
+            approval_gate=mock_approval_gate
         )
 
     # Assert
@@ -258,7 +260,7 @@ async def test_orchestrator_run_incident_broadcast_execute_plan_dag() -> None:
             plan_generator=FakePlanGenerator(plan=fake_plan),
             plan_executor=mock_plan_executor,
             prompt_renderer=mock_prompt_renderer,
-            approval_gate=mock_approval_gate,
+            # approval_gate=mock_approval_gate,
             summarizer=mock_summarizer,
             max_retries=0
         )
@@ -272,7 +274,8 @@ async def test_orchestrator_run_incident_broadcast_execute_plan_dag() -> None:
         result = await orch.run_incident_broadcast(
             user_request=user_request,
             user_id=user_id,
-            approval_repository=mock_approval_repo,
+            # approval_repository=mock_approval_repo,
+            approval_gate=mock_approval_gate
         )
 
     # Assertions

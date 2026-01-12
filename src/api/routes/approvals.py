@@ -5,7 +5,7 @@ from datetime import datetime
 
 from src.api.container import get_container
 from src.infrastructure.db.connection import get_db
-from src.domain.approval.repository import ApprovalRequestRepository
+from src.repository.approval_repository import ApprovalRequestRepository
 from src.domain.approval.models import ApprovalStatus
 from src.domain.approval.entities import (
     ApprovalRequestEntity as ApprovalRequest,

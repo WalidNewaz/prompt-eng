@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.api.container import get_container
 from src.infrastructure.db.connection import get_db
-from src.domain.approval.repository import ApprovalRequestRepository
+from src.repository.approval_repository import ApprovalRequestRepository
 
 
 router = APIRouter(prefix="/demo", tags=["Demo"])
@@ -33,5 +33,5 @@ async def run_live_demo(
     return await orchestrator.run_incident_broadcast(
         user_request=payload.user_request,
         user_id=payload.user_id,
-        approval_repository=approval_repository,
+        # approval_repository=approval_repository,
     )

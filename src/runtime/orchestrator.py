@@ -23,7 +23,7 @@ from typing import Any
 
 from src.core.errors import OrchestrationError
 from src.core.types import WorkflowDefinition
-from src.infrastructure.llm import LLMClient, LLMRequest
+from src.domain.llm.llm_entities import LLMClient, LLMRequest
 from src.core.observability import Span, log_event, new_trace_id
 from src.tools.schemas import validate_tool_call_payload
 from src.domain.policies import (
@@ -39,10 +39,8 @@ from src.domain.plans import PlanGenerator, LLMPlanGenerator
 from src.domain.prompt_store import PromptStore, FilesystemPromptStore
 from src.domain.approval import (
     ApprovalGate,
-    DefaultApprovalGate,
-    ApprovalRequestRepositoryProtocol,
-    ApprovalRequestRepository,
 )
+from src.repository.approval_repository import ApprovalRequestRepositoryProtocol, ApprovalRequestRepository
 from src.domain.summarizer import WorkflowSummarizer, LLMWorkflowSummarizer
 
 from .harness import PromptToolHarness, ToolExecutionError
@@ -144,7 +142,8 @@ class Orchestrator:
             try:
                 tool_call_obj = _parse_json_object(llm_resp.output_text)
                 _validated_tool_call = validate_tool_call_payload(tool_call_obj)
-                # Execute side effects through the harness (schema-validated + real HTTP tool execution).
+                # Execute side effects through the harness
+                # (schema-validated + real HTTP tool execution).
                 return await self._harness.run_tool_call(tool_call_obj)
             except (ValueError, json.JSONDecodeError) as exc:
                 last_error = exc
@@ -179,7 +178,6 @@ class Orchestrator:
             tool_plan_version: str = 'v1',
             summary_version: str = 'v1',
             user_id: str | None = None,
-            # approval_repository: ApprovalRequestRepositoryProtocol | None = None,
             approval_gate: ApprovalGate | None = None,
     ) -> dict[str, Any]:
         """

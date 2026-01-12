@@ -4,10 +4,10 @@ import httpx
 import pytest
 
 from src.infrastructure.llm import (
-    LLMRequest,
     OpenAIResponsesConfig,
     OpenAIResponsesLLMClient
 )
+from src.domain.llm.llm_entities import LLMRequest
 
 @pytest.mark.asyncio
 async def test_openai_responses_adapter_extracts_output_text() -> None:

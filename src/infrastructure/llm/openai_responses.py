@@ -17,7 +17,7 @@ from typing import Any
 
 import httpx
 
-from .entities import LLMClient, LLMRequest, LLMResponse, LLMUsage
+from src.domain.llm.llm_entities import LLMClient, LLMRequest, LLMResponse, LLMUsage
 from src.core.config import Settings
 
 
