@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from fastapi import Depends
 from sqlalchemy.orm import Session
@@ -25,21 +25,41 @@ class IncidentBroadcastRequest(BaseModel):
     user_request: str
     user_id: str = "demo_user_001"
 
-@router.post(
-    "/incident_broadcast",
-    summary="Report incident",
-    description="Execute the Incident Broadcast workflow."
+# @router.post(
+#     "/incident_broadcast",
+#     summary="Report incident",
+#     description="Execute the Incident Broadcast workflow."
+# )
+# async def handle_incident_broadcast(
+#     payload: IncidentBroadcastRequest,
+#     approval_repository: ApprovalRequestRepository = Depends(get_approval_repo),
+#     approval_gate: ApprovalGate = Depends(get_approval_gate),
+#     container=Depends(get_container),
+# ):
+#     orchestrator = container.orchestrator
+#     return await orchestrator.run_incident_broadcast(
+#         user_request=payload.user_request,
+#         user_id=payload.user_id,
+#         # approval_repository=approval_repository,
+#         approval_gate=approval_gate,
+#     )
+
+@router.get(
+    "",
+    summary="List available workflows",
+    description="List all available workflows.",
 )
-async def handle_incident_broadcast(
-    payload: IncidentBroadcastRequest,
-    approval_repository: ApprovalRequestRepository = Depends(get_approval_repo),
-    approval_gate: ApprovalGate = Depends(get_approval_gate),
-    container=Depends(get_container),
-):
-    orchestrator = container.orchestrator
-    return await orchestrator.run_incident_broadcast(
-        user_request=payload.user_request,
-        user_id=payload.user_id,
-        # approval_repository=approval_repository,
-        approval_gate=approval_gate,
-    )
+def list_workflows():
+    raise HTTPException(status_code=501, detail="Not implemented")
+
+@router.post("", summary="Create a new workflow")
+def create_workflow():
+    raise HTTPException(status_code=501, detail="Not implemented")
+
+@router.get("/{workflow_id}", summary="Get workflow details")
+def get_workflow(workflow_id: str):
+    raise HTTPException(status_code=501, detail="Not implemented")
+
+@router.put("/{workflow_id}", summary="Update workflow details")
+def update_workflow(workflow_id: str, workflow: IncidentBroadcastRequest):
+    raise HTTPException(status_code=501, detail="Not implemented")
